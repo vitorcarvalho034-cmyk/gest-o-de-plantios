@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1780669854207,
+      "tag": "0000_marvelous_true_believers",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1780670079401,
+      "tag": "0001_dry_sasquatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1780679714882,
+      "tag": "0002_gifted_maestro",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1780679875016,
+      "tag": "0003_warm_scarlet_witch",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1780681432484,
+      "tag": "0004_amusing_zzzax",
+      "breakpoints": true
+    }
+  ]
+}

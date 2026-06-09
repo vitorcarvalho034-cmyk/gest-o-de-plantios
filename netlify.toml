@@ -1,0 +1,20 @@
+[build]
+  command = "pnpm run build:netlify"
+  publish = "dist/client"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Netlify Functions têm prioridade sobre o SPA catch-all
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
+
+# SPA catch-all — todas as rotas vão para index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

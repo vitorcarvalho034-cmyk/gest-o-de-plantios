@@ -1,0 +1,1 @@
+ALTER TABLE `chrysanthemum_plantings` ADD `totalSeedlingsSent` int DEFAULT 0 NOT NULL;
