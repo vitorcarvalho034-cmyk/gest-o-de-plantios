@@ -5,15 +5,10 @@
 
 [build.environment]
   NODE_VERSION = "20"
-
-# Netlify Functions têm prioridade sobre o SPA catch-all
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
+  PNPM_VERSION = "9"
 
 # SPA catch-all — todas as rotas vão para index.html
+# (As Netlify Functions são roteadas automaticamente pelo Netlify)
 [[redirects]]
   from = "/*"
   to = "/index.html"
