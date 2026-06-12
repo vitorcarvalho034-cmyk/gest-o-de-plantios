@@ -404,10 +404,10 @@ export const appRouter = router({
         }
         const existing = await getAllEmployees();
         if (existing.length > 0) throw new TRPCError({ code: "CONFLICT", message: "Funcionários já cadastrados" });
-        for (const emp of input.employees) {
-          const hash = await bcrypt.hash(emp.password, 10);
+        await Promise.all(input.employees.map(async (emp) => {
+          const hash = await bcrypt.hash(emp.password, 8);
           await createEmployee({ name: emp.name, username: emp.username, passwordHash: hash, role: emp.role });
-        }
+        }));
         return { created: input.employees.length };
       }),
   }),
@@ -611,7 +611,7 @@ export const appRouter = router({
         if (!emp || emp.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
         const existing = await getEmployeeByUsername(input.username);
         if (existing) throw new TRPCError({ code: "CONFLICT", message: "Usuário já existe" });
-        const hash = await bcrypt.hash(input.password, 10);
+        const hash = await bcrypt.hash(input.password, 8);
         await createEmployee({ name: input.name, username: input.username, passwordHash: hash, role: input.role });
         return { success: true };
       }),
@@ -642,7 +642,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const emp = await getEmployeeFromCtx(ctx);
         if (!emp || emp.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
-        const hash = await bcrypt.hash(input.newPassword, 10);
+        const hash = await bcrypt.hash(input.newPassword, 8);
         await updateEmployee(input.id, { passwordHash: hash });
         return { success: true };
       }),
