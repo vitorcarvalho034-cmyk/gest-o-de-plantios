@@ -425,15 +425,20 @@ export default function MyHistory() {
       </div>
 
       {/* Date filter */}
-      <div className="flex gap-3 items-end bg-white rounded-2xl border border-border p-4">
-        <Calendar className="w-5 h-5 text-muted-foreground mb-1 flex-shrink-0" />
-        <div className="flex-1 space-y-1">
-          <Label className="text-xs text-muted-foreground">De</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-11 rounded-xl text-sm" />
+      <div className="bg-white rounded-2xl border border-border p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <span className="text-xs font-medium text-muted-foreground">Filtrar por período</span>
         </div>
-        <div className="flex-1 space-y-1">
-          <Label className="text-xs text-muted-foreground">Até</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-11 rounded-xl text-sm" />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">De</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-10 rounded-xl text-sm w-full" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Até</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-10 rounded-xl text-sm w-full" />
+          </div>
         </div>
       </div>
 

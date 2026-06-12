@@ -329,7 +329,7 @@ export default function Launch() {
 
               <div className="space-y-3">
                 <Label className="text-sm font-semibold">Selecione as estufas com mudas enviadas</Label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
                   {GH_NUMS.map((g) => (
                     <button
                       key={g}
@@ -579,7 +579,7 @@ export default function Launch() {
                   <>
                     <div className="space-y-3">
                       <Label className="text-sm font-semibold">Estufas plantadas</Label>
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
                         {GH_NUMS.map((g) => (
                           <button
                             key={g}
@@ -630,9 +630,9 @@ export default function Launch() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs text-muted-foreground font-medium">Desconto de caixas</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground font-medium">Desconto de caixas</Label>
                         <Input
                           type="number"
                           inputMode="numeric"
@@ -743,18 +743,18 @@ export default function Launch() {
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   variant="outline"
                   onClick={() => setStep("add")}
-                  className="flex-1 h-14 rounded-xl text-base font-semibold"
+                  className="sm:flex-1 h-12 rounded-xl text-sm font-semibold"
                 >
                   ← Voltar
                 </Button>
                 <Button
                   onClick={handleCloseSession}
                   disabled={closeSession.isPending || !sessionBalanced}
-                  className="flex-[2] h-14 rounded-xl text-base font-bold"
+                  className="sm:flex-[2] h-12 rounded-xl text-sm font-bold"
                 >
                   {closeSession.isPending ? "Fechando..." : "✅ Confirmar Fechamento"}
                 </Button>
@@ -817,7 +817,7 @@ export default function Launch() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground font-medium">Desconto de bandejas</Label>
                   <Input type="number" inputMode="numeric" min="0" value={sfDiscount} onChange={(e) => setSfDiscount(e.target.value)} placeholder="0" className="h-12 rounded-xl text-base" />

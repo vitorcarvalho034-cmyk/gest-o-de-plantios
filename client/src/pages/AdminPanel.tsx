@@ -235,15 +235,20 @@ export default function AdminPanel() {
       {/* Filters */}
       <div className="space-y-3">
         {/* Date filter */}
-        <div className="flex gap-3 items-end bg-white rounded-2xl border border-border p-4">
-          <Calendar className="w-5 h-5 text-muted-foreground mb-1 flex-shrink-0" />
-          <div className="flex-1 space-y-1">
-            <Label className="text-xs text-muted-foreground">De</Label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-11 rounded-xl text-sm" />
+        <div className="bg-white rounded-2xl border border-border p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Calendar className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-xs font-medium text-muted-foreground">Filtrar por período</span>
           </div>
-          <div className="flex-1 space-y-1">
-            <Label className="text-xs text-muted-foreground">Até</Label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-11 rounded-xl text-sm" />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">De</Label>
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-10 rounded-xl text-sm w-full" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Até</Label>
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-10 rounded-xl text-sm w-full" />
+            </div>
           </div>
         </div>
 
@@ -314,21 +319,26 @@ export default function AdminPanel() {
 
       {/* Tabs */}
       <Tabs defaultValue="summary">
-        <TabsList className="grid grid-cols-5 w-full h-10 bg-muted/60 rounded-xl">
-          <TabsTrigger value="summary" className="flex items-center gap-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs font-medium">
-            <TrendingUp className="w-3.5 h-3.5" /> Resumo
+        <TabsList className="grid grid-cols-5 w-full h-11 bg-muted/60 rounded-xl">
+          <TabsTrigger value="summary" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium px-1">
+            <TrendingUp className="w-4 h-4" />
+            <span className="text-[9px] sm:text-xs leading-none">Resumo</span>
           </TabsTrigger>
-          <TabsTrigger value="chrysanthemum" className="flex items-center gap-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs font-medium">
-            <Flower2 className="w-3.5 h-3.5" /> Crisântemo
+          <TabsTrigger value="chrysanthemum" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium px-1">
+            <Flower2 className="w-4 h-4" />
+            <span className="text-[9px] sm:text-xs leading-none">Cris.</span>
           </TabsTrigger>
-          <TabsTrigger value="sunflower" className="flex items-center gap-1.5 rounded-lg data-[state=active]:bg-amber-500 data-[state=active]:text-white text-xs font-medium">
-            <Sun className="w-3.5 h-3.5" /> Girassol
+          <TabsTrigger value="sunflower" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 rounded-lg data-[state=active]:bg-amber-500 data-[state=active]:text-white font-medium px-1">
+            <Sun className="w-4 h-4" />
+            <span className="text-[9px] sm:text-xs leading-none">Girassol</span>
           </TabsTrigger>
-          <TabsTrigger value="reconciliation" className="flex items-center gap-1 rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white text-xs font-medium">
-            <GitCompare className="w-3 h-3" /> <span className="hidden sm:inline">Cruzamento</span><span className="sm:hidden">Cruz.</span>
+          <TabsTrigger value="reconciliation" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1 rounded-lg data-[state=active]:bg-blue-600 data-[state=active]:text-white font-medium px-1">
+            <GitCompare className="w-4 h-4" />
+            <span className="text-[9px] sm:text-xs leading-none">Cruz.</span>
           </TabsTrigger>
-          <TabsTrigger value="sessions" className="flex items-center gap-1 rounded-lg data-[state=active]:bg-emerald-600 data-[state=active]:text-white text-xs font-medium">
-            <ListChecks className="w-3 h-3" /> Sessões
+          <TabsTrigger value="sessions" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1 rounded-lg data-[state=active]:bg-emerald-600 data-[state=active]:text-white font-medium px-1">
+            <ListChecks className="w-4 h-4" />
+            <span className="text-[9px] sm:text-xs leading-none">Sessões</span>
           </TabsTrigger>
         </TabsList>
 
