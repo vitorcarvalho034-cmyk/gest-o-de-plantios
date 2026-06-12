@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Flower2, Sun, Users, Package, Layers, TrendingUp, AlertCircle, Calendar, ChevronDown, ChevronUp, TrendingDown, CheckCircle2, XCircle, Clock, GitCompare, ListChecks, Lock, AlertOctagon } from "lucide-react";
+import { Flower2, Sun, Users, Package, Layers, TrendingUp, AlertCircle, Calendar, ChevronDown, ChevronUp, TrendingDown, CheckCircle2, XCircle, Clock, GitCompare, ListChecks, Lock, AlertOctagon, DollarSign, UserCheck } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -104,10 +105,14 @@ function EmployeeSummaryCard({ s }: { s: EmpSummary }) {
   );
 }
 
+const CHRY_PRICE = 7; // R$ por caixa
+const SUN_PRICE = 4;  // R$ por bandeja
+
 export default function AdminPanel() {
   const { employee } = useEmployeeAuth();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
 
   const { data: employeeList } = trpc.employee.list.useQuery();
   const { data: chrysAll, isLoading: chrysLoading } = trpc.chrysanthemum.adminAll.useQuery(
@@ -172,6 +177,17 @@ export default function AdminPanel() {
   const totalSunNet = summaries.reduce((s, e) => s + e.sunNet, 0);
   const totalChrysDiscount = summaries.reduce((s, e) => s + e.chrysDiscount, 0);
 
+  // Filtro por funcionário para pagamento
+  const selectedEmpIdNum = selectedEmployeeId !== "all" ? Number(selectedEmployeeId) : null;
+  const filteredChry = selectedEmpIdNum ? (chrysAll ?? []).filter(p => p.employeeId === selectedEmpIdNum) : (chrysAll ?? []);
+  const filteredSun = selectedEmpIdNum ? (sunAll ?? []).filter(p => p.employeeId === selectedEmpIdNum) : (sunAll ?? []);
+  const payChryNet = filteredChry.reduce((s, p) => s + (p.totalBoxes - p.discountBoxes), 0);
+  const paySunNet = filteredSun.reduce((s, p) => s + (p.trays - p.discountTrays), 0);
+  const payChryValue = payChryNet * CHRY_PRICE;
+  const paySunValue = paySunNet * SUN_PRICE;
+  const payTotal = payChryValue + paySunValue;
+  const selectedEmpName = selectedEmpIdNum ? (employeeList?.find(e => e.id === selectedEmpIdNum)?.name ?? `Funcionário #${selectedEmpIdNum}`) : null;
+
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       {/* Header */}
@@ -216,16 +232,83 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {/* Date filter */}
-      <div className="flex gap-3 items-end bg-white rounded-2xl border border-border p-4">
-        <Calendar className="w-5 h-5 text-muted-foreground mb-1 flex-shrink-0" />
-        <div className="flex-1 space-y-1">
-          <Label className="text-xs text-muted-foreground">De</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-11 rounded-xl text-sm" />
+      {/* Filters */}
+      <div className="space-y-3">
+        {/* Date filter */}
+        <div className="flex gap-3 items-end bg-white rounded-2xl border border-border p-4">
+          <Calendar className="w-5 h-5 text-muted-foreground mb-1 flex-shrink-0" />
+          <div className="flex-1 space-y-1">
+            <Label className="text-xs text-muted-foreground">De</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-11 rounded-xl text-sm" />
+          </div>
+          <div className="flex-1 space-y-1">
+            <Label className="text-xs text-muted-foreground">Até</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-11 rounded-xl text-sm" />
+          </div>
         </div>
-        <div className="flex-1 space-y-1">
-          <Label className="text-xs text-muted-foreground">Até</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-11 rounded-xl text-sm" />
+
+        {/* Employee filter + Payment card */}
+        <div className="bg-white rounded-2xl border border-border p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            <div className="flex-1">
+              <Label className="text-xs text-muted-foreground mb-1 block">Filtrar por funcionário</Label>
+              <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                <SelectTrigger className="h-11 rounded-xl text-sm">
+                  <SelectValue placeholder="Todos os funcionários" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os funcionários</SelectItem>
+                  {employeeList?.filter(e => e.role === "employee").sort((a, b) => a.name.localeCompare(b.name)).map(e => (
+                    <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Payment summary */}
+          {selectedEmpIdNum && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-green-700" />
+                <p className="text-sm font-bold text-green-800">Pagamento — {selectedEmpName}</p>
+              </div>
+              {from && to && (
+                <p className="text-xs text-green-700">Período: {from} a {to}</p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white rounded-xl p-3 border border-primary/20">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Flower2 className="w-3.5 h-3.5 text-primary" />
+                    <span className="text-xs text-muted-foreground">Crisântemo</span>
+                  </div>
+                  <p className="text-base font-bold text-primary">{payChryNet} cx</p>
+                  <p className="text-xs text-green-700 font-semibold mt-0.5">
+                    R$ {payChryValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">× R$ {CHRY_PRICE},00/cx</p>
+                </div>
+                <div className="bg-white rounded-xl p-3 border border-amber-200">
+                  <div className="flex items-center gap-1 mb-1">
+                    <Sun className="w-3.5 h-3.5 text-amber-600" />
+                    <span className="text-xs text-muted-foreground">Girassol</span>
+                  </div>
+                  <p className="text-base font-bold text-amber-600">{paySunNet} band.</p>
+                  <p className="text-xs text-green-700 font-semibold mt-0.5">
+                    R$ {paySunValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">× R$ {SUN_PRICE},00/band.</p>
+                </div>
+              </div>
+              <div className="bg-green-700 rounded-xl p-3 flex items-center justify-between">
+                <span className="text-sm font-bold text-white">TOTAL A PAGAR</span>
+                <span className="text-xl font-bold text-white">
+                  R$ {payTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
