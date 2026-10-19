@@ -5,6 +5,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { EmployeeAuthProvider, useEmployeeAuth } from "./contexts/EmployeeAuthContext";
 import AppLayout from "./components/AppLayout";
+import { BRAND_LOGO_URL } from "@/const";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import Dashboard from "./pages/Dashboard";
@@ -23,7 +24,7 @@ function ProtectedRoutes() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(134,239,172,1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+              <img src={BRAND_LOGO_URL} alt="" className="w-10 h-10 object-contain" />
           </div>
           <p className="text-muted-foreground text-sm">Carregando...</p>
         </div>

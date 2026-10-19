@@ -12,11 +12,11 @@ import {
   LogOut,
   Menu,
   X,
-  Leaf,
   Users,
   AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BRAND_LOGO_URL } from "@/const";
 
 interface NavItem {
   href: string;
@@ -63,14 +63,10 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <aside className="hidden md:flex flex-col w-56 bg-sidebar-background flex-shrink-0">
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-            <Leaf className="w-5 h-5 text-green-400" />
-          </div>
+          <img src={BRAND_LOGO_URL} alt="" className="w-9 h-9 object-contain flex-shrink-0" />
           <div className="min-w-0">
             <p className="text-sidebar-foreground font-serif font-semibold text-sm leading-tight truncate">Gestão de Plantio</p>
-            <p className="text-sidebar-foreground/50 text-xs flex items-center gap-1">
-              <Leaf className="w-3 h-3" /> Sistema Agrícola
-            </p>
+            <p className="text-sidebar-foreground/50 text-xs">Sistema Agrícola</p>
           </div>
         </div>
 
@@ -125,7 +121,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <aside className="absolute left-0 top-0 bottom-0 w-72 bg-sidebar-background shadow-2xl flex flex-col">
             <div className="flex items-center justify-between px-4 py-4 border-b border-sidebar-border">
               <div className="flex items-center gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(134,239,172,1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+                <img src={BRAND_LOGO_URL} alt="" className="w-8 h-8 object-contain" />
                 <span className="text-sidebar-foreground font-serif font-semibold">Gestão de Plantio</span>
               </div>
               <button onClick={() => setSidebarOpen(false)} className="text-sidebar-foreground/70 p-2 rounded-lg hover:bg-sidebar-accent">
@@ -194,7 +190,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <Leaf className="w-5 h-5 text-green-400" />
+            <img src={BRAND_LOGO_URL} alt="" className="w-6 h-6 object-contain" />
             <span className="font-serif font-semibold text-sm">Gestão de Plantio</span>
           </div>
           <div className="w-9" />

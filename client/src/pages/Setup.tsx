@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ShieldCheck, Leaf } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { BRAND_LOGO_URL } from "@/const";
 
 const DEFAULT_EMPLOYEES = [
   { name: "Funcionário 01", username: "func01", password: "senha01", role: "employee" as const },
@@ -71,12 +72,10 @@ export default function Setup() {
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
           <div className="w-20 h-20 rounded-full bg-white/10 flex items-center justify-center mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="rgba(134,239,172,1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+            <img src={BRAND_LOGO_URL} alt="" className="w-14 h-14 object-contain" />
           </div>
           <h1 className="text-2xl font-serif font-bold text-white">Configuração Inicial</h1>
-          <p className="text-white/60 text-sm mt-1 flex items-center gap-1">
-            <Leaf className="w-3.5 h-3.5" /> Gestão de Plantio
-          </p>
+          <p className="text-white/60 text-sm mt-1">Gestão de Plantio</p>
         </div>
         <Card className="shadow-2xl">
           <CardHeader>
