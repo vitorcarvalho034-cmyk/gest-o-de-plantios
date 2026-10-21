@@ -32,9 +32,18 @@ type PlantingRecord = {
 };
 
 const GH_NUMS = [1, 2, 3, 4] as const;
+const SEEDLINGS_PER_BOX = 1000;
 
 function fmtNum(n: number) {
   return n.toLocaleString("pt-BR");
+}
+
+function fmtBoxes(n: number) {
+  return n.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
+}
+
+function boxesToSeedlings(boxes: number) {
+  return Math.round(boxes * SEEDLINGS_PER_BOX);
 }
 
 export default function Launch() {
@@ -88,7 +97,7 @@ export default function Launch() {
     onSuccess: (data) => {
       if (!data.sessionId) { toast.error("Erro ao abrir sessão"); return; }
       const ghList = Array.from(selectedGhSent)
-        .map((g) => ({ greenhouse: g, seedlingsSent: Number(ghSentValues[g]) || 0 }))
+        .map((g) => ({ greenhouse: g, seedlingsSent: boxesToSeedlings(Number(ghSentValues[g]) || 0) }))
         .filter((g) => g.seedlingsSent > 0);
       const total = ghList.reduce((s, g) => s + g.seedlingsSent, 0);
       setActiveSession({
@@ -134,9 +143,9 @@ export default function Launch() {
       } else {
         const diff = data.diff;
         if (diff > 0) {
-          toast.info(`Faltam ${fmtNum(diff)} mudas (${Math.floor(diff / 1000)} cx) para bater.`);
+          toast.info(`Faltam ${fmtBoxes(diff / SEEDLINGS_PER_BOX)} caixas para bater.`);
         } else {
-          toast.warning(`${fmtNum(Math.abs(diff))} mudas a mais que o enviado.`);
+          toast.warning(`${fmtBoxes(Math.abs(diff) / SEEDLINGS_PER_BOX)} caixas a mais que o enviado.`);
         }
       }
     },
@@ -167,9 +176,9 @@ export default function Launch() {
   });
 
   // ── Cálculos ─────────────────────────────────────────────────────────────────
-  const totalSentInForm = Array.from(selectedGhSent).reduce((s, g) => s + (Number(ghSentValues[g]) || 0), 0);
-  const totalPlantedInForm = Array.from(selectedGhPlanted).reduce((s, g) => s + (Number(ghPlantedValues[g]) || 0), 0);
-  const boxesGross = Math.floor(totalPlantedInForm / 1000);
+  const totalBoxesSentInForm = Array.from(selectedGhSent).reduce((s, g) => s + (Number(ghSentValues[g]) || 0), 0);
+  const totalBoxesPlantedInForm = Array.from(selectedGhPlanted).reduce((s, g) => s + (Number(ghPlantedValues[g]) || 0), 0);
+  const boxesGross = totalBoxesPlantedInForm;
   const netBoxes = Math.max(0, boxesGross - Number(discountBoxes || 0));
   const sessionDiff = activeSession ? activeSession.totalSeedlingsSent - activeSession.totalSeedlingsPlanted : 0;
   const sessionBalanced = sessionDiff === 0 && (activeSession?.totalSeedlingsPlanted ?? 0) > 0;
@@ -177,9 +186,9 @@ export default function Launch() {
   // ── Handlers ─────────────────────────────────────────────────────────────────
   function handleOpenSession() {
     const ghList = Array.from(selectedGhSent)
-      .map((g) => ({ greenhouse: g as 1 | 2 | 3 | 4, seedlingsSent: Number(ghSentValues[g]) || 0 }))
+      .map((g) => ({ greenhouse: g as 1 | 2 | 3 | 4, seedlingsSent: boxesToSeedlings(Number(ghSentValues[g]) || 0) }))
       .filter((g) => g.seedlingsSent > 0);
-    if (ghList.length === 0) { toast.error("Informe as mudas enviadas para pelo menos uma estufa"); return; }
+    if (ghList.length === 0) { toast.error("Informe as caixas enviadas para pelo menos uma estufa"); return; }
     openSession.mutate({ plantingDate: sessionDate, greenhouses: ghList });
   }
 
@@ -200,9 +209,9 @@ export default function Launch() {
     }
 
     const ghList = Array.from(selectedGhPlanted)
-      .map((g) => ({ greenhouse: g as 1 | 2 | 3 | 4, seedlings: Number(ghPlantedValues[g]) || 0 }))
+      .map((g) => ({ greenhouse: g as 1 | 2 | 3 | 4, seedlings: boxesToSeedlings(Number(ghPlantedValues[g]) || 0) }))
       .filter((g) => g.seedlings > 0);
-    if (ghList.length === 0) { toast.error("Informe as mudas plantadas em pelo menos uma estufa"); return; }
+    if (ghList.length === 0) { toast.error("Informe as caixas plantadas em pelo menos uma estufa"); return; }
     if (Number(discountBoxes) > 0 && !discountReason.trim()) {
       toast.error("Informe o motivo do desconto de caixas"); return;
     }
@@ -313,7 +322,7 @@ export default function Launch() {
               <div>
                 <h2 className="text-lg font-serif font-bold text-foreground">Etapa 1 — Abrir Sessão</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Informe a data e quantas mudas foram enviadas para cada estufa. Isso define o total que precisa ser plantado.
+                  Informe a data e quantas caixas foram enviadas para cada estufa. Cada caixa equivale a 1.000 mudas e define o total a plantar.
                 </p>
               </div>
 
@@ -328,7 +337,7 @@ export default function Launch() {
               </div>
 
               <div className="space-y-3">
-                <Label className="text-sm font-semibold">Selecione as estufas com mudas enviadas</Label>
+                <Label className="text-sm font-semibold">Selecione as estufas com caixas enviadas</Label>
                 <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
                   {GH_NUMS.map((g) => (
                     <button
@@ -352,19 +361,21 @@ export default function Launch() {
                 {Array.from(selectedGhSent).sort().map((g) => (
                   <div key={g} className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground font-medium">
-                      Estufa {g} — Mudas enviadas
+                      Estufa {g} — Caixas enviadas
                     </Label>
                     <Input
                       type="number"
                       inputMode="numeric"
-                      placeholder="Ex: 5000"
+                      min="1"
+                      step="1"
+                      placeholder="Ex: 24"
                       value={ghSentValues[g]}
                       onChange={(e) => setGhSentValues((prev) => ({ ...prev, [g]: e.target.value }))}
                       className="h-12 rounded-xl text-base"
                     />
                     {Number(ghSentValues[g]) > 0 && (
                       <p className="text-xs text-primary font-medium">
-                        = {Math.floor(Number(ghSentValues[g]) / 1000)} caixas
+                        = {fmtNum(boxesToSeedlings(Number(ghSentValues[g]) || 0))} mudas
                       </p>
                     )}
                   </div>
@@ -372,16 +383,16 @@ export default function Launch() {
               </div>
 
               {/* Resumo total enviado */}
-              {totalSentInForm > 0 && (
+              {totalBoxesSentInForm > 0 && (
                 <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
                   <div className="flex items-center gap-2">
                     <Package className="w-5 h-5 text-primary" />
                     <div>
                       <p className="text-sm font-bold text-primary">
-                        Total enviado: {fmtNum(totalSentInForm)} mudas
+                        Total enviado: {fmtNum(totalBoxesSentInForm)} caixas
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        = {Math.floor(totalSentInForm / 1000)} caixas a serem plantadas
+                        = {fmtNum(boxesToSeedlings(totalBoxesSentInForm))} mudas a serem plantadas
                       </p>
                     </div>
                   </div>
@@ -390,7 +401,7 @@ export default function Launch() {
 
               <Button
                 onClick={handleOpenSession}
-                disabled={openSession.isPending || totalSentInForm === 0}
+                disabled={openSession.isPending || totalBoxesSentInForm === 0}
                 className="w-full h-14 rounded-xl text-base font-bold gap-2"
               >
                 {openSession.isPending ? "Abrindo..." : <>Abrir Sessão <ChevronRight className="w-5 h-5" /></>}
@@ -432,17 +443,17 @@ export default function Launch() {
                               ? "bg-green-100 text-green-700 border-green-200"
                               : "bg-orange-100 text-orange-700 border-orange-200"
                           )}>
-                            {diff === 0 && s.totalSeedlingsPlanted > 0 ? "✅ Pronta p/ fechar" : `Faltam ${fmtNum(Math.max(0, diff))}`}
+                            {diff === 0 && s.totalSeedlingsPlanted > 0 ? "✅ Pronta p/ fechar" : `Faltam ${fmtBoxes(Math.max(0, diff) / SEEDLINGS_PER_BOX)} cx`}
                           </Badge>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center">
                           <div className="bg-white rounded-lg py-1.5 border border-border/60">
                             <p className="text-xs text-muted-foreground">Enviado</p>
-                            <p className="text-sm font-bold text-blue-700">{fmtNum(s.totalSeedlingsSent)}</p>
+                            <p className="text-sm font-bold text-blue-700">{fmtBoxes(s.totalSeedlingsSent / SEEDLINGS_PER_BOX)} cx</p>
                           </div>
                           <div className="bg-white rounded-lg py-1.5 border border-border/60">
                             <p className="text-xs text-muted-foreground">Plantado</p>
-                            <p className="text-sm font-bold text-green-700">{fmtNum(s.totalSeedlingsPlanted)}</p>
+                            <p className="text-sm font-bold text-green-700">{fmtBoxes(s.totalSeedlingsPlanted / SEEDLINGS_PER_BOX)} cx</p>
                           </div>
                           <div className="bg-white rounded-lg py-1.5 border border-border/60">
                             <p className="text-xs text-muted-foreground">Estufas</p>
@@ -471,27 +482,27 @@ export default function Launch() {
                     "text-xs font-bold",
                     sessionBalanced ? "bg-green-400 text-green-900" : "bg-white/20 text-white"
                   )}>
-                    {sessionBalanced ? "✅ Bateu!" : `Faltam ${fmtNum(Math.max(0, sessionDiff))} mudas`}
+                    {sessionBalanced ? "✅ Bateu!" : `Faltam ${fmtBoxes(Math.max(0, sessionDiff) / SEEDLINGS_PER_BOX)} caixas`}
                   </Badge>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-white/10 rounded-xl p-2">
                     <p className="text-xs opacity-75">Enviado</p>
-                    <p className="font-bold text-lg">{fmtNum(activeSession.totalSeedlingsSent)}</p>
-                    <p className="text-xs opacity-60">mudas</p>
+                    <p className="font-bold text-lg">{fmtBoxes(activeSession.totalSeedlingsSent / SEEDLINGS_PER_BOX)}</p>
+                    <p className="text-xs opacity-60">caixas</p>
                   </div>
                   <div className="bg-white/10 rounded-xl p-2">
                     <p className="text-xs opacity-75">Plantado</p>
-                    <p className="font-bold text-lg">{fmtNum(activeSession.totalSeedlingsPlanted)}</p>
-                    <p className="text-xs opacity-60">mudas</p>
+                    <p className="font-bold text-lg">{fmtBoxes(activeSession.totalSeedlingsPlanted / SEEDLINGS_PER_BOX)}</p>
+                    <p className="text-xs opacity-60">caixas</p>
                   </div>
                   <div className={cn("rounded-xl p-2", sessionDiff === 0 && activeSession.totalSeedlingsPlanted > 0 ? "bg-green-400/30" : "bg-orange-400/20")}>
                     <p className="text-xs opacity-75">Diferença</p>
                     <p className={cn("font-bold text-lg", sessionDiff === 0 && activeSession.totalSeedlingsPlanted > 0 ? "text-green-300" : "text-orange-300")}>
-                      {sessionDiff === 0 && activeSession.totalSeedlingsPlanted > 0 ? "✓ 0" : fmtNum(Math.abs(sessionDiff))}
+                      {sessionDiff === 0 && activeSession.totalSeedlingsPlanted > 0 ? "✓ 0" : fmtBoxes(Math.abs(sessionDiff) / SEEDLINGS_PER_BOX)}
                     </p>
-                    <p className="text-xs opacity-60">mudas</p>
+                    <p className="text-xs opacity-60">caixas</p>
                   </div>
                 </div>
 
@@ -499,7 +510,7 @@ export default function Launch() {
                 <div className="flex gap-2 flex-wrap mt-3">
                   {activeSession.greenhouses.map((g) => (
                     <span key={g.greenhouse} className="text-xs bg-white/15 rounded-lg px-2 py-1">
-                      Est. {g.greenhouse}: {fmtNum(g.seedlingsSent)} mudas
+                      Est. {g.greenhouse}: {fmtBoxes(g.seedlingsSent / SEEDLINGS_PER_BOX)} caixas
                     </span>
                   ))}
                 </div>
@@ -520,7 +531,7 @@ export default function Launch() {
                           <p className="text-xs text-destructive">Ausente: {p.absenceReason}</p>
                         ) : (
                           <p className="text-xs text-muted-foreground">
-                            {fmtNum(p.totalSeedlings)} mudas
+                            {fmtNum(p.totalBoxes)} caixas
                             {p.discountBoxes > 0 && ` · -${p.discountBoxes} cx desc.`}
                           </p>
                         )}
@@ -602,12 +613,14 @@ export default function Launch() {
                       {Array.from(selectedGhPlanted).sort().map((g) => (
                         <div key={g} className="space-y-1.5">
                           <Label className="text-xs text-muted-foreground font-medium">
-                            🌱 Estufa {g} — Mudas plantadas
+                            📦 Estufa {g} — Caixas plantadas
                           </Label>
                           <Input
                             type="number"
                             inputMode="numeric"
-                            placeholder="Qtd. mudas plantadas"
+                            min="1"
+                            step="1"
+                            placeholder="Qtd. de caixas plantadas"
                             value={ghPlantedValues[g]}
                             onChange={(e) => setGhPlantedValues((prev) => ({ ...prev, [g]: e.target.value }))}
                             className="h-12 rounded-xl text-base"
@@ -617,10 +630,10 @@ export default function Launch() {
                     </div>
 
                     {/* Resumo automático */}
-                    {totalPlantedInForm > 0 && (
+                    {totalBoxesPlantedInForm > 0 && (
                       <div className="rounded-xl bg-primary/5 border border-primary/20 p-3">
                         <p className="text-sm font-bold text-primary">
-                          {fmtNum(totalPlantedInForm)} mudas = {boxesGross} caixas brutas
+                          {fmtNum(totalBoxesPlantedInForm)} caixas plantadas
                         </p>
                         {Number(discountBoxes) > 0 && (
                           <p className="text-xs text-destructive mt-0.5">
@@ -705,17 +718,17 @@ export default function Launch() {
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <p className="text-xs text-muted-foreground">Enviado</p>
-                    <p className="font-bold text-foreground">{fmtNum(activeSession.totalSeedlingsSent)}</p>
+                    <p className="text-xs text-muted-foreground">Enviado (caixas)</p>
+                    <p className="font-bold text-foreground">{fmtBoxes(activeSession.totalSeedlingsSent / SEEDLINGS_PER_BOX)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Plantado</p>
-                    <p className="font-bold text-foreground">{fmtNum(activeSession.totalSeedlingsPlanted)}</p>
+                    <p className="text-xs text-muted-foreground">Plantado (caixas)</p>
+                    <p className="font-bold text-foreground">{fmtBoxes(activeSession.totalSeedlingsPlanted / SEEDLINGS_PER_BOX)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Diferença</p>
+                    <p className="text-xs text-muted-foreground">Diferença (caixas)</p>
                     <p className={cn("font-bold", sessionDiff === 0 ? "text-green-600" : "text-destructive")}>
-                      {sessionDiff === 0 ? "0 ✓" : fmtNum(Math.abs(sessionDiff))}
+                      {sessionDiff === 0 ? "0 ✓" : fmtBoxes(Math.abs(sessionDiff) / SEEDLINGS_PER_BOX)}
                     </p>
                   </div>
                 </div>
