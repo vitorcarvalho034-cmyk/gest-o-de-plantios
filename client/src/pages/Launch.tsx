@@ -33,6 +33,7 @@ type PlantingRecord = {
 
 const GH_NUMS = [1, 2, 3, 4] as const;
 const SEEDLINGS_PER_BOX = 1000;
+const BOXES_PER_HALF_VAO = 8;
 
 function fmtNum(n: number) {
   return n.toLocaleString("pt-BR");
@@ -44,6 +45,27 @@ function fmtBoxes(n: number) {
 
 function boxesToSeedlings(boxes: number) {
   return Math.round(boxes * SEEDLINGS_PER_BOX);
+}
+
+function parseLocalizedNumber(value: string) {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function vaosToBoxes(vaos: number) {
+  return Math.round(vaos * 2) * BOXES_PER_HALF_VAO;
+}
+
+function getVaoPreview(value: string) {
+  const vaos = parseLocalizedNumber(value);
+  if (vaos === null || vaos <= 0 || !Number.isInteger(vaos * 2)) return null;
+  return { vaos, boxes: vaosToBoxes(vaos) };
+}
+
+function formatVaos(vaos: number) {
+  return vaos.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 }
 
 export default function Launch() {
@@ -60,7 +82,7 @@ export default function Launch() {
   // Etapa 1: abrir sessão
   const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [selectedGhSent, setSelectedGhSent] = useState<Set<number>>(new Set([1]));
-  const [ghSentValues, setGhSentValues] = useState<Record<number, string>>({ 1: "", 2: "", 3: "", 4: "" });
+  const [ghVaoValues, setGhVaoValues] = useState<Record<number, string>>({ 1: "", 2: "", 3: "", 4: "" });
 
   // Etapa 2: adicionar funcionário
   const [selEmployee, setSelEmployee] = useState<string>("");
@@ -97,7 +119,10 @@ export default function Launch() {
     onSuccess: (data) => {
       if (!data.sessionId) { toast.error("Erro ao abrir sessão"); return; }
       const ghList = Array.from(selectedGhSent)
-        .map((g) => ({ greenhouse: g, seedlingsSent: boxesToSeedlings(Number(ghSentValues[g]) || 0) }))
+        .map((g) => ({
+          greenhouse: g,
+          seedlingsSent: boxesToSeedlings(getVaoPreview(ghVaoValues[g])?.boxes ?? 0),
+        }))
         .filter((g) => g.seedlingsSent > 0);
       const total = ghList.reduce((s, g) => s + g.seedlingsSent, 0);
       setActiveSession({
@@ -158,7 +183,7 @@ export default function Launch() {
       setStep("open");
       setActiveSession(null);
       setSessionPlantings([]);
-      setGhSentValues({ 1: "", 2: "", 3: "", 4: "" });
+      setGhVaoValues({ 1: "", 2: "", 3: "", 4: "" });
       setSelectedGhSent(new Set([1]));
       utils.chrysanthemum.myHistory.invalidate();
     },
@@ -176,7 +201,14 @@ export default function Launch() {
   });
 
   // ── Cálculos ─────────────────────────────────────────────────────────────────
-  const totalBoxesSentInForm = Array.from(selectedGhSent).reduce((s, g) => s + (Number(ghSentValues[g]) || 0), 0);
+  const hasInvalidVaoCount = Array.from(selectedGhSent).some((g) => {
+    const value = ghVaoValues[g].trim();
+    return value !== "" && getVaoPreview(value) === null;
+  });
+  const totalBoxesSentInForm = Array.from(selectedGhSent).reduce(
+    (s, g) => s + (getVaoPreview(ghVaoValues[g])?.boxes ?? 0),
+    0
+  );
   const totalBoxesPlantedInForm = Array.from(selectedGhPlanted).reduce((s, g) => s + (Number(ghPlantedValues[g]) || 0), 0);
   const boxesGross = totalBoxesPlantedInForm;
   const netBoxes = Math.max(0, boxesGross - Number(discountBoxes || 0));
@@ -185,10 +217,17 @@ export default function Launch() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   function handleOpenSession() {
+    if (hasInvalidVaoCount) {
+      toast.error("Informe os vãos em unidades inteiras ou de meio em meio (ex.: 1,5).");
+      return;
+    }
     const ghList = Array.from(selectedGhSent)
-      .map((g) => ({ greenhouse: g as 1 | 2 | 3 | 4, seedlingsSent: boxesToSeedlings(Number(ghSentValues[g]) || 0) }))
+      .map((g) => ({
+        greenhouse: g as 1 | 2 | 3 | 4,
+        seedlingsSent: boxesToSeedlings(getVaoPreview(ghVaoValues[g])?.boxes ?? 0),
+      }))
       .filter((g) => g.seedlingsSent > 0);
-    if (ghList.length === 0) { toast.error("Informe as caixas enviadas para pelo menos uma estufa"); return; }
+    if (ghList.length === 0) { toast.error("Informe os vãos enviados para pelo menos uma estufa"); return; }
     openSession.mutate({ plantingDate: sessionDate, greenhouses: ghList });
   }
 
@@ -322,7 +361,7 @@ export default function Launch() {
               <div>
                 <h2 className="text-lg font-serif font-bold text-foreground">Etapa 1 — Abrir Sessão</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Informe a data e quantas caixas foram enviadas para cada estufa. Cada caixa equivale a 1.000 mudas e define o total a plantar.
+                  Informe quantos vãos vão para cada estufa. Cada meio vão corresponde a 8 caixas (16 caixas por vão); o sistema calcula o total automaticamente.
                 </p>
               </div>
 
@@ -337,7 +376,7 @@ export default function Launch() {
               </div>
 
               <div className="space-y-3">
-                <Label className="text-sm font-semibold">Selecione as estufas com caixas enviadas</Label>
+                <Label className="text-sm font-semibold">Selecione as estufas que receberão o plantio</Label>
                 <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
                   {GH_NUMS.map((g) => (
                     <button
@@ -358,28 +397,34 @@ export default function Launch() {
                   ))}
                 </div>
 
-                {Array.from(selectedGhSent).sort().map((g) => (
-                  <div key={g} className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground font-medium">
-                      Estufa {g} — Caixas enviadas
-                    </Label>
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      step="1"
-                      placeholder="Ex: 24"
-                      value={ghSentValues[g]}
-                      onChange={(e) => setGhSentValues((prev) => ({ ...prev, [g]: e.target.value }))}
-                      className="h-12 rounded-xl text-base"
-                    />
-                    {Number(ghSentValues[g]) > 0 && (
-                      <p className="text-xs text-primary font-medium">
-                        = {fmtNum(boxesToSeedlings(Number(ghSentValues[g]) || 0))} mudas
-                      </p>
-                    )}
-                  </div>
-                ))}
+                {Array.from(selectedGhSent).sort().map((g) => {
+                  const value = ghVaoValues[g];
+                  const preview = getVaoPreview(value);
+                  return (
+                    <div key={g} className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground font-medium">
+                        Estufa {g} — Vãos enviados
+                      </Label>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ex.: 3 ou 1,5"
+                        value={value}
+                        onChange={(e) => setGhVaoValues((prev) => ({ ...prev, [g]: e.target.value }))}
+                        className="h-12 rounded-xl text-base"
+                      />
+                      {preview ? (
+                        <p className="text-xs text-primary font-medium">
+                          {formatVaos(preview.vaos)} {preview.vaos === 1 ? "vão" : "vãos"} = {fmtNum(preview.boxes)} caixas ({fmtNum(boxesToSeedlings(preview.boxes))} mudas)
+                        </p>
+                      ) : value.trim() ? (
+                        <p className="text-xs text-destructive font-medium">
+                          Use vãos inteiros ou de meio em meio (ex.: 1,5).
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Resumo total enviado */}
@@ -389,7 +434,7 @@ export default function Launch() {
                     <Package className="w-5 h-5 text-primary" />
                     <div>
                       <p className="text-sm font-bold text-primary">
-                        Total enviado: {fmtNum(totalBoxesSentInForm)} caixas
+                        Total calculado: {fmtNum(totalBoxesSentInForm)} caixas
                       </p>
                       <p className="text-xs text-muted-foreground">
                         = {fmtNum(boxesToSeedlings(totalBoxesSentInForm))} mudas a serem plantadas
@@ -401,7 +446,7 @@ export default function Launch() {
 
               <Button
                 onClick={handleOpenSession}
-                disabled={openSession.isPending || totalBoxesSentInForm === 0}
+                disabled={openSession.isPending || totalBoxesSentInForm === 0 || hasInvalidVaoCount}
                 className="w-full h-14 rounded-xl text-base font-bold gap-2"
               >
                 {openSession.isPending ? "Abrindo..." : <>Abrir Sessão <ChevronRight className="w-5 h-5" /></>}
