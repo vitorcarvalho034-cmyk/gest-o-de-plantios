@@ -106,10 +106,16 @@ export default function Launch() {
   const [sfAbsenceReason, setSfAbsenceReason] = useState("");
 
   // ── Queries ──────────────────────────────────────────────────────────────────
+  const isAdmin = employee?.role === "admin";
   const isLauncher = employee?.role === "launcher" || employee?.role === "admin";
   const { data: employees = [] } = trpc.employee.list.useQuery();
   const workerList = employees.filter((e) => e.role === "employee");
-  const { data: openSessions = [] } = trpc.session.listOpen.useQuery(
+  const {
+    data: openSessions = [],
+    isLoading: loadingOpenSessions,
+    isError: openSessionsError,
+    refetch: refreshOpenSessions,
+  } = trpc.session.listOpen.useQuery(
     undefined,
     { enabled: isLauncher && step === "open" }
   );
@@ -186,6 +192,7 @@ export default function Launch() {
       setGhVaoValues({ 1: "", 2: "", 3: "", 4: "" });
       setSelectedGhSent(new Set([1]));
       utils.chrysanthemum.myHistory.invalidate();
+      utils.session.listOpen.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -217,6 +224,10 @@ export default function Launch() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
   function handleOpenSession() {
+    if (!isAdmin) {
+      toast.error("Apenas administradores podem abrir sessões.");
+      return;
+    }
     if (hasInvalidVaoCount) {
       toast.error("Informe os vãos em unidades inteiras ou de meio em meio (ex.: 1,5).");
       return;
@@ -348,7 +359,7 @@ export default function Launch() {
                       ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"
                 )}>{i + 1}</div>
                 <span className={cn("text-xs font-medium hidden sm:block", step === s ? "text-primary" : "text-muted-foreground")}>
-                  {s === "open" ? "Abrir" : s === "add" ? "Lançar" : "Fechar"}
+                  {s === "open" ? (isAdmin ? "Abrir" : "Selecionar sessão") : s === "add" ? "Lançar" : "Fechar"}
                 </span>
                 {i < 2 && <ArrowRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />}
               </div>
@@ -358,106 +369,138 @@ export default function Launch() {
           {/* ── ETAPA 1: Abrir sessão ── */}
           {step === "open" && (
             <div className="bg-white rounded-2xl border border-border shadow-sm p-5 space-y-5">
-              <div>
-                <h2 className="text-lg font-serif font-bold text-foreground">Etapa 1 — Abrir Sessão</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Informe quantos vãos vão para cada estufa. Cada meio vão corresponde a 8 caixas (16 caixas por vão); o sistema calcula o total automaticamente.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Data do Plantio *</Label>
-                <Input
-                  type="date"
-                  value={sessionDate}
-                  onChange={(e) => setSessionDate(e.target.value)}
-                  className="h-14 rounded-xl text-base"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label className="text-sm font-semibold">Selecione as estufas que receberão o plantio</Label>
-                <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
-                  {GH_NUMS.map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setSelectedGhSent((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(g)) { next.delete(g); } else { next.add(g); }
-                        return next;
-                      })}
-                      className={cn(
-                        "py-3 rounded-xl border-2 text-sm font-bold transition-all",
-                        selectedGhSent.has(g) ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-muted-foreground"
-                      )}
-                    >
-                      Est. {g}
-                    </button>
-                  ))}
-                </div>
-
-                {Array.from(selectedGhSent).sort().map((g) => {
-                  const value = ghVaoValues[g];
-                  const preview = getVaoPreview(value);
-                  return (
-                    <div key={g} className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground font-medium">
-                        Estufa {g} — Vãos enviados
-                      </Label>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="Ex.: 3 ou 1,5"
-                        value={value}
-                        onChange={(e) => setGhVaoValues((prev) => ({ ...prev, [g]: e.target.value }))}
-                        className="h-12 rounded-xl text-base"
-                      />
-                      {preview ? (
-                        <p className="text-xs text-primary font-medium">
-                          {formatVaos(preview.vaos)} {preview.vaos === 1 ? "vão" : "vãos"} = {fmtNum(preview.boxes)} caixas ({fmtNum(boxesToSeedlings(preview.boxes))} mudas)
-                        </p>
-                      ) : value.trim() ? (
-                        <p className="text-xs text-destructive font-medium">
-                          Use vãos inteiros ou de meio em meio (ex.: 1,5).
-                        </p>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Resumo total enviado */}
-              {totalBoxesSentInForm > 0 && (
-                <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-5 h-5 text-primary" />
-                    <div>
-                      <p className="text-sm font-bold text-primary">
-                        Total calculado: {fmtNum(totalBoxesSentInForm)} caixas
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        = {fmtNum(boxesToSeedlings(totalBoxesSentInForm))} mudas a serem plantadas
-                      </p>
-                    </div>
-                  </div>
+              {!isAdmin && (
+                <div>
+                  <h2 className="text-lg font-serif font-bold text-foreground">Selecione uma sessão aberta</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    A Etapa 1 — Abrir Sessão é exclusiva do administrador. Escolha abaixo uma sessão já aberta para lançar as caixas plantadas por funcionário.
+                  </p>
+                  <Button variant="outline" onClick={() => refreshOpenSessions()} className="mt-3 rounded-xl">
+                    Atualizar sessões
+                  </Button>
                 </div>
               )}
+              {isAdmin && (
+                <>
+                  <div>
+                    <h2 className="text-lg font-serif font-bold text-foreground">Etapa 1 — Abrir Sessão</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Informe quantos vãos vão para cada estufa. Cada meio vão corresponde a 8 caixas (16 caixas por vão); o sistema calcula o total automaticamente.
+                    </p>
+                  </div>
 
-              <Button
-                onClick={handleOpenSession}
-                disabled={openSession.isPending || totalBoxesSentInForm === 0 || hasInvalidVaoCount}
-                className="w-full h-14 rounded-xl text-base font-bold gap-2"
-              >
-                {openSession.isPending ? "Abrindo..." : <>Abrir Sessão <ChevronRight className="w-5 h-5" /></>}
-              </Button>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-semibold">Data do Plantio *</Label>
+                    <Input
+                      type="date"
+                      value={sessionDate}
+                      onChange={(e) => setSessionDate(e.target.value)}
+                      className="h-14 rounded-xl text-base"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="text-sm font-semibold">Selecione as estufas que receberão o plantio</Label>
+                    <div className="grid grid-cols-4 sm:grid-cols-4 gap-2">
+                      {GH_NUMS.map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setSelectedGhSent((prev) => {
+                            const next = new Set(prev);
+                            if (next.has(g)) { next.delete(g); } else { next.add(g); }
+                            return next;
+                          })}
+                          className={cn(
+                            "py-3 rounded-xl border-2 text-sm font-bold transition-all",
+                            selectedGhSent.has(g) ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-muted-foreground"
+                          )}
+                        >
+                          Est. {g}
+                        </button>
+                      ))}
+                    </div>
+
+                    {Array.from(selectedGhSent).sort().map((g) => {
+                      const value = ghVaoValues[g];
+                      const preview = getVaoPreview(value);
+                      return (
+                        <div key={g} className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground font-medium">
+                            Estufa {g} — Vãos enviados
+                          </Label>
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            placeholder="Ex.: 3 ou 1,5"
+                            value={value}
+                            onChange={(e) => setGhVaoValues((prev) => ({ ...prev, [g]: e.target.value }))}
+                            className="h-12 rounded-xl text-base"
+                          />
+                          {preview ? (
+                            <p className="text-xs text-primary font-medium">
+                              {formatVaos(preview.vaos)} {preview.vaos === 1 ? "vão" : "vãos"} = {fmtNum(preview.boxes)} caixas ({fmtNum(boxesToSeedlings(preview.boxes))} mudas)
+                            </p>
+                          ) : value.trim() ? (
+                            <p className="text-xs text-destructive font-medium">
+                              Use vãos inteiros ou de meio em meio (ex.: 1,5).
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Resumo total enviado */}
+                  {totalBoxesSentInForm > 0 && (
+                    <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
+                      <div className="flex items-center gap-2">
+                        <Package className="w-5 h-5 text-primary" />
+                        <div>
+                          <p className="text-sm font-bold text-primary">
+                            Total calculado: {fmtNum(totalBoxesSentInForm)} caixas
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            = {fmtNum(boxesToSeedlings(totalBoxesSentInForm))} mudas a serem plantadas
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleOpenSession}
+                    disabled={openSession.isPending || totalBoxesSentInForm === 0 || hasInvalidVaoCount}
+                    className="w-full h-14 rounded-xl text-base font-bold gap-2"
+                  >
+                    {openSession.isPending ? "Abrindo..." : <>Abrir Sessão <ChevronRight className="w-5 h-5" /></>}
+                  </Button>
+                </>
+              )}
 
               {/* Sessões abertas existentes */}
+              {loadingOpenSessions && (
+                <p className="text-sm text-muted-foreground">Carregando sessões abertas...</p>
+              )}
+              {openSessionsError && (
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4">
+                  <p className="text-sm text-destructive">Não foi possível carregar as sessões abertas.</p>
+                  <Button variant="outline" onClick={() => refreshOpenSessions()} className="mt-2 rounded-xl">
+                    Tentar novamente
+                  </Button>
+                </div>
+              )}
+              {!isAdmin && !loadingOpenSessions && !openSessionsError && openSessions.length === 0 && (
+                <div className="rounded-xl bg-muted/30 border border-border p-4">
+                  <p className="text-sm font-semibold text-foreground">Nenhuma sessão aberta no momento.</p>
+                  <p className="text-sm text-muted-foreground mt-1">Aguarde o administrador abrir uma sessão para começar os lançamentos.</p>
+                </div>
+              )}
               {openSessions.length > 0 && (
                 <div className="mt-2 space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-px bg-border" />
-                    <span className="text-xs text-muted-foreground font-medium px-2">ou retome uma sessão aberta</span>
+                    <span className="text-xs text-muted-foreground font-medium px-2">{isAdmin ? "ou retome uma sessão aberta" : "Sessões abertas disponíveis"}</span>
                     <div className="flex-1 h-px bg-border" />
                   </div>
                   {openSessions.map((s) => {

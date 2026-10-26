@@ -87,8 +87,8 @@ const sessionRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const launcher = await getEmployeeFromCtx(ctx);
-      if (!launcher || (launcher.role !== "launcher" && launcher.role !== "admin")) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Apenas lançadores podem abrir sessões" });
+      if (!launcher || launcher.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores podem abrir sessões de plantio" });
       }
       const totalSent = input.greenhouses.reduce((s, g) => s + g.seedlingsSent, 0);
       await createPlantingSession({
