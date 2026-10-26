@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useEmployeeAuth } from "@/contexts/EmployeeAuthContext";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Flower2, Sun, ChevronRight, CheckCircle2, AlertTriangle, Users, Package, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDateOnly, todayDateInputValue } from "@/lib/date-only";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 type PlantType = "chrysanthemum" | "sunflower";
@@ -24,6 +25,7 @@ type ActiveSession = {
 };
 
 type PlantingRecord = {
+  employeeId?: number;
   employeeName: string;
   totalSeedlings: number;
   totalBoxes: number;
@@ -80,7 +82,7 @@ export default function Launch() {
   const [sessionPlantings, setSessionPlantings] = useState<PlantingRecord[]>([]);
 
   // Etapa 1: abrir sessão
-  const [sessionDate, setSessionDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [sessionDate, setSessionDate] = useState(todayDateInputValue);
   const [selectedGhSent, setSelectedGhSent] = useState<Set<number>>(new Set([1]));
   const [ghVaoValues, setGhVaoValues] = useState<Record<number, string>>({ 1: "", 2: "", 3: "", 4: "" });
 
@@ -98,7 +100,7 @@ export default function Launch() {
 
   // ── Girassol ────────────────────────────────────────────────────────────────
   const [sfEmployee, setSfEmployee] = useState<string>("");
-  const [sfDate, setSfDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [sfDate, setSfDate] = useState(todayDateInputValue);
   const [sfTrays, setSfTrays] = useState("");
   const [sfDiscount, setSfDiscount] = useState("0");
   const [sfDiscountReason, setSfDiscountReason] = useState("");
@@ -119,6 +121,33 @@ export default function Launch() {
     undefined,
     { enabled: isLauncher && step === "open" }
   );
+  const {
+    data: activeSessionDetails,
+    isLoading: loadingSessionPlantings,
+  } = trpc.session.getWithPlantings.useQuery(
+    { sessionId: activeSession?.id ?? 0 },
+    { enabled: isLauncher && step === "add" && activeSession !== null }
+  );
+
+  useEffect(() => {
+    if (!activeSessionDetails || activeSessionDetails.session.id !== activeSession?.id) return;
+    setSessionPlantings(activeSessionDetails.plantings.map((planting) => ({
+      employeeId: planting.employeeId,
+      employeeName: planting.employeeName,
+      totalSeedlings: planting.totalSeedlings,
+      totalBoxes: planting.totalBoxes,
+      absenceReason: planting.absenceReason,
+      discountBoxes: planting.discountBoxes,
+    })));
+    setActiveSession((current) => current && current.id === activeSessionDetails.session.id
+      ? {
+          ...current,
+          totalSeedlingsSent: activeSessionDetails.session.totalSeedlingsSent,
+          totalSeedlingsPlanted: activeSessionDetails.session.totalSeedlingsPlanted,
+        }
+      : current
+    );
+  }, [activeSessionDetails, activeSession?.id]);
 
   // ── Mutations ────────────────────────────────────────────────────────────────
   const openSession = trpc.session.open.useMutation({
@@ -138,9 +167,12 @@ export default function Launch() {
         totalSeedlingsSent: total,
         totalSeedlingsPlanted: 0,
       });
+      setSelectedGhPlanted(new Set(ghList.map((item) => item.greenhouse)));
       setSessionPlantings([]);
       setStep("add");
       toast.success("Sessão aberta! Agora registre os funcionários.");
+      utils.session.manageList.invalidate();
+      utils.reconciliation.bySession.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -152,6 +184,7 @@ export default function Launch() {
       setSessionPlantings((prev) => [
         ...prev,
         {
+          employeeId: emp?.id,
           employeeName: emp?.name ?? "Funcionário",
           totalSeedlings: data.totalSeedlings,
           totalBoxes: data.totalBoxes,
@@ -160,6 +193,9 @@ export default function Launch() {
         },
       ]);
       setActiveSession((s) => s ? { ...s, totalSeedlingsPlanted: data.sessionTotal } : s);
+      utils.session.manageList.invalidate();
+      utils.session.getWithPlantings.invalidate({ sessionId: activeSession.id });
+      utils.reconciliation.bySession.invalidate();
 
       // Reset formulário
       setSelEmployee("");
@@ -193,6 +229,8 @@ export default function Launch() {
       setSelectedGhSent(new Set([1]));
       utils.chrysanthemum.myHistory.invalidate();
       utils.session.listOpen.invalidate();
+      utils.session.manageList.invalidate();
+      utils.reconciliation.bySession.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -203,6 +241,8 @@ export default function Launch() {
       setSfEmployee(""); setSfTrays(""); setSfDiscount("0");
       setSfDiscountReason(""); setSfAbsent(false); setSfAbsenceReason("");
       utils.sunflower.myHistory.invalidate();
+      utils.sunflower.manageAll.invalidate();
+      utils.sunflower.adminAll.invalidate();
     },
     onError: (e) => toast.error(e.message),
   });
@@ -244,6 +284,7 @@ export default function Launch() {
 
   function handleAddPlanting() {
     if (!activeSession) return;
+    if (loadingSessionPlantings) { toast.info("Carregando os lançamentos desta sessão. Tente novamente em instantes."); return; }
     if (!selEmployee) { toast.error("Selecione um funcionário"); return; }
 
     if (isAbsent) {
@@ -251,7 +292,7 @@ export default function Launch() {
       addPlanting.mutate({
         sessionId: activeSession.id,
         employeeId: Number(selEmployee),
-        greenhouses: [{ greenhouse: 1, seedlings: 0 }],
+        greenhouses: [{ greenhouse: (activeSession.greenhouses[0]?.greenhouse ?? 1) as 1 | 2 | 3 | 4, seedlings: 0 }],
         discountBoxes: 0,
         absenceReason,
       });
@@ -291,6 +332,7 @@ export default function Launch() {
       return;
     }
     if (!sfTrays || Number(sfTrays) <= 0) { toast.error("Informe a quantidade de bandejas"); return; }
+    if (Number(sfDiscount) > Number(sfTrays)) { toast.error("O desconto não pode superar as bandejas plantadas"); return; }
     if (Number(sfDiscount) > 0 && !sfDiscountReason.trim()) { toast.error("Informe o motivo do desconto"); return; }
     createSunflower.mutate({
       employeeId: Number(sfEmployee),
@@ -310,9 +352,10 @@ export default function Launch() {
       totalSeedlingsSent: s.totalSeedlingsSent,
       totalSeedlingsPlanted: s.totalSeedlingsPlanted,
     });
+    setSelectedGhPlanted(new Set(ghs.map((item) => item.greenhouse as 1 | 2 | 3 | 4)));
     setSessionPlantings([]);
     setStep("add");
-    toast.success(`Sessão de ${new Date(s.plantingDate).toLocaleDateString("pt-BR")} retomada!`);
+    toast.success(`Sessão de ${formatDateOnly(s.plantingDate)} retomada!`);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -520,7 +563,7 @@ export default function Launch() {
                             </div>
                             <div>
                               <p className="text-sm font-bold text-primary">
-                                {new Date(s.plantingDate).toLocaleDateString("pt-BR")}
+                                {formatDateOnly(s.plantingDate)}
                               </p>
                               <p className="text-xs text-muted-foreground">Sessão #{s.id}</p>
                             </div>
@@ -564,7 +607,7 @@ export default function Launch() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <p className="text-xs opacity-75">Sessão aberta</p>
-                    <p className="font-bold">{new Date(activeSession.plantingDate).toLocaleDateString("pt-BR")}</p>
+                    <p className="font-bold">{formatDateOnly(activeSession.plantingDate)}</p>
                   </div>
                   <Badge className={cn(
                     "text-xs font-bold",
@@ -644,7 +687,7 @@ export default function Launch() {
                       <SelectValue placeholder="Selecione o funcionário..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {workerList.map((e) => (
+                      {workerList.filter((e) => !sessionPlantings.some((planting) => planting.employeeId === e.id)).map((e) => (
                         <SelectItem key={e.id} value={String(e.id)} className="py-3 text-base">{e.name}</SelectItem>
                       ))}
                     </SelectContent>
@@ -760,10 +803,10 @@ export default function Launch() {
 
                 <Button
                   onClick={handleAddPlanting}
-                  disabled={addPlanting.isPending}
+                  disabled={addPlanting.isPending || loadingSessionPlantings}
                   className="w-full h-14 rounded-xl text-base font-bold gap-2"
                 >
-                  {addPlanting.isPending ? "Salvando..." : "+ Registrar Funcionário"}
+                  {loadingSessionPlantings ? "Carregando sessão..." : addPlanting.isPending ? "Salvando..." : "+ Registrar Funcionário"}
                 </Button>
               </div>
 

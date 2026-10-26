@@ -9,15 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Flower2, Sun, Package, Layers, Calendar, AlertCircle, TrendingDown, ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { formatDateOnly } from "@/lib/date-only";
 
 type GreenhouseEntry = { greenhouse: 1 | 2 | 3 | 4; seedlingsSent?: number; seedlings: number };
 
 function formatDate(d: Date | string) {
-  return format(new Date(d), "dd/MM/yyyy", { locale: ptBR });
+  return formatDateOnly(d);
 }
 
 function ConfirmStatusBadge({ status }: { status: string | null | undefined }) {

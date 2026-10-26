@@ -3,6 +3,7 @@ import { useEmployeeAuth } from "@/contexts/EmployeeAuthContext";
 import { Link } from "wouter";
 import { Package, Layers, PlusCircle, History, ShieldCheck, Flower2, Sun, TrendingUp, Leaf } from "lucide-react";
 import { BRAND_LOGO_URL } from "@/const";
+import { formatDateOnly } from "@/lib/date-only";
 
 export default function Dashboard() {
   const { employee } = useEmployeeAuth();
@@ -124,7 +125,7 @@ export default function Dashboard() {
                 <Flower2 className="w-4 h-4 text-primary flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Crisântemo</p>
-                  <p className="text-xs text-muted-foreground">{new Date(p.plantingDate).toLocaleDateString("pt-BR")}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateOnly(p.plantingDate)}</p>
                 </div>
                 <span className="text-sm font-bold text-primary flex-shrink-0">{p.totalBoxes - p.discountBoxes} cx</span>
               </div>
@@ -134,7 +135,7 @@ export default function Dashboard() {
                 <Sun className="w-4 h-4 text-amber-600 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">Girassol</p>
-                  <p className="text-xs text-muted-foreground">{new Date(p.plantingDate).toLocaleDateString("pt-BR")}</p>
+                  <p className="text-xs text-muted-foreground">{formatDateOnly(p.plantingDate)}</p>
                 </div>
                 <span className="text-sm font-bold text-amber-600 flex-shrink-0">{p.trays - p.discountTrays} band.</span>
               </div>

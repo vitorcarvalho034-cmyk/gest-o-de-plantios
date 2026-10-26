@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import Dashboard from "./pages/Dashboard";
 import Launch from "./pages/Launch";
+import ManageRecords from "./pages/ManageRecords";
 import MyHistory from "./pages/MyHistory";
 import AdminPanel from "./pages/AdminPanel";
 import UserManagement from "./pages/UserManagement";
@@ -49,6 +50,7 @@ function ProtectedRoutes() {
         </Route>
         <Route path="/dashboard" component={Dashboard} />
         <Route path="/launch" component={Launch} />
+        <Route path="/manage" component={ManageRecords} />
         <Route path="/my-history" component={MyHistory} />
         <Route path="/admin" component={AdminPanel} />
         <Route path="/admin/users" component={UserManagement} />

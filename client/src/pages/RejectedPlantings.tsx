@@ -2,8 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { AlertTriangle, Flower2, Sun, Pencil, X, ChevronDown, ChevronUp, Plus, Minus } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDateOnly } from "@/lib/date-only";
 
 type GreenhouseEntry = { greenhouse: number; seedlingsSent: number; seedlings: number };
 
@@ -85,7 +84,7 @@ export default function RejectedPlantings() {
                             Funcionário #{p.employeeId}
                           </p>
                           <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#6b7280" }}>
-                            {format(new Date(p.plantingDate), "dd/MM/yyyy", { locale: ptBR })} · {p.totalBoxes} caixas
+                            {formatDateOnly(p.plantingDate)} · {p.totalBoxes} caixas
                           </p>
                           {p.confirmRejectionReason && (
                             <div style={{ marginTop: "8px", padding: "8px 10px", background: "#fef2f2", borderRadius: "8px", border: "1px solid #fecaca" }}>
@@ -136,7 +135,7 @@ export default function RejectedPlantings() {
                           Funcionário #{p.employeeId}
                         </p>
                         <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#6b7280" }}>
-                          {format(new Date(p.plantingDate), "dd/MM/yyyy", { locale: ptBR })} · {p.trays} bandejas
+                          {formatDateOnly(p.plantingDate)} · {p.trays} bandejas
                         </p>
                         {p.confirmRejectionReason && (
                           <div style={{ marginTop: "8px", padding: "8px 10px", background: "#fffbeb", borderRadius: "8px", border: "1px solid #fde68a" }}>

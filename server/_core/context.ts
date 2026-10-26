@@ -6,10 +6,12 @@ export type TrpcContext = {
   req: {
     headers: Record<string, string | string[] | undefined>;
   };
+  responseHeaders: Headers;
 };
 
-export function createContext(opts: { req: { headers: Record<string, string | string[] | undefined> } }): TrpcContext {
+export function createContext(opts: { req: { headers: Record<string, string | string[] | undefined> }; responseHeaders?: Headers }): TrpcContext {
   return {
     req: opts.req,
+    responseHeaders: opts.responseHeaders ?? new Headers(),
   };
 }

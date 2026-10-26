@@ -14,6 +14,7 @@ import {
   X,
   Users,
   AlertTriangle,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BRAND_LOGO_URL } from "@/const";
@@ -28,6 +29,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Início", icon: <LayoutDashboard className="w-5 h-5" />, roles: ["employee", "launcher", "admin"] },
   { href: "/launch", label: "Lançar", icon: <PlusCircle className="w-5 h-5" />, roles: ["launcher", "admin"] },
+  { href: "/manage", label: "Gerenciar", icon: <ClipboardList className="w-5 h-5" />, roles: ["launcher", "admin"] },
   { href: "/rejected", label: "Contestações", icon: <AlertTriangle className="w-5 h-5" />, roles: ["launcher", "admin"] },
   { href: "/my-history", label: "Histórico", icon: <History className="w-5 h-5" />, roles: ["employee", "launcher", "admin"] },
   { href: "/admin", label: "Admin", icon: <ShieldCheck className="w-5 h-5" />, roles: ["admin"] },
@@ -42,8 +44,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
   const logoutMutation = trpc.employee.logout.useMutation({
     onSuccess: () => {
-      // Limpar cookie JWT
-      document.cookie = "emp_session=; path=/; max-age=0; SameSite=Lax";
       utils.employee.me.invalidate();
       toast.success("Sessão encerrada");
       window.location.href = "/";

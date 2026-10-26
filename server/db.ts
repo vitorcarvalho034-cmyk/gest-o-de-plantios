@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, not } from "drizzle-orm";
+import { and, desc, eq, gte, lte, not, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
 import {
@@ -68,7 +68,8 @@ export async function getAllEmployees() {
 
 export async function createChrysanthemumPlanting(data: InsertChrysanthemumPlanting) {
   const db = getDb();
-  await db.insert(chrysanthemumPlantings).values(data);
+  const result = await db.insert(chrysanthemumPlantings).values(data).returning({ id: chrysanthemumPlantings.id });
+  return result[0];
 }
 
 export async function getChrysanthemumPlantingsByEmployee(
@@ -150,6 +151,55 @@ export async function getPlantingSessionById(id: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function updatePlantingSessionDetails(
+  id: number,
+  data: {
+    plantingDate: Date;
+    greenhouses: { greenhouse: number; seedlingsSent: number }[];
+    totalSeedlingsSent: number;
+    updatedById: number;
+  }
+) {
+  const db = getDb();
+  const balanced = sql`${plantingSessions.totalSeedlingsPlanted} = ${data.totalSeedlingsSent}`;
+  await db.update(plantingSessions).set({
+    plantingDate: data.plantingDate,
+    greenhouses: data.greenhouses,
+    totalSeedlingsSent: data.totalSeedlingsSent,
+    status: sql`CASE
+      WHEN ${plantingSessions.status} = 'open' THEN 'open'::session_status
+      WHEN ${balanced} THEN 'closed'::session_status
+      ELSE 'divergent'::session_status
+    END`,
+    closedAt: sql`CASE WHEN ${plantingSessions.status} <> 'open' AND ${balanced} THEN now() ELSE NULL END`,
+    closedById: sql`CASE WHEN ${plantingSessions.status} <> 'open' AND ${balanced} THEN ${data.updatedById} ELSE NULL END`,
+    closeNote: null,
+  }).where(eq(plantingSessions.id, id));
+  await db.update(chrysanthemumPlantings)
+    .set({ plantingDate: data.plantingDate })
+    .where(eq(chrysanthemumPlantings.sessionId, id));
+}
+
+export async function deletePlantingSessionAndPlantings(id: number) {
+  const db = getDb();
+  const linked = await getChrysanthemumPlantingsBySession(id);
+  await db.execute(sql`
+    WITH deleted_plantings AS (
+      DELETE FROM ${chrysanthemumPlantings}
+      WHERE ${chrysanthemumPlantings.sessionId} = ${id}
+      RETURNING ${chrysanthemumPlantings.id}
+    ), deleted_session AS (
+      DELETE FROM ${plantingSessions}
+      WHERE ${plantingSessions.id} = ${id}
+      RETURNING ${plantingSessions.id}
+    )
+    SELECT
+      (SELECT COUNT(*) FROM deleted_plantings) AS deleted_plantings,
+      (SELECT COUNT(*) FROM deleted_session) AS deleted_session
+  `);
+  return linked.length;
+}
+
 export async function getOpenPlantingSessions() {
   const db = getDb();
   return db.select().from(plantingSessions)
@@ -167,11 +217,45 @@ export async function getAllPlantingSessions(from?: Date, to?: Date) {
   return query;
 }
 
-export async function updateSessionPlanted(sessionId: number, totalSeedlingsPlanted: number) {
+export async function adjustSessionPlantedTotal(
+  sessionId: number,
+  deltaSeedlings: number,
+  updatedById: number,
+  requireOpen = false
+) {
   const db = getDb();
-  await db.update(plantingSessions)
-    .set({ totalSeedlingsPlanted })
-    .where(eq(plantingSessions.id, sessionId));
+  const nextTotal = sql`${plantingSessions.totalSeedlingsPlanted} + ${deltaSeedlings}`;
+  const nextStatus = sql`CASE
+    WHEN ${plantingSessions.status} = 'open' THEN 'open'::session_status
+    WHEN ${nextTotal} = ${plantingSessions.totalSeedlingsSent} THEN 'closed'::session_status
+    ELSE 'divergent'::session_status
+  END`;
+  const updated = await db.update(plantingSessions)
+    .set({
+      totalSeedlingsPlanted: nextTotal,
+      status: nextStatus,
+      closedAt: sql`CASE
+        WHEN ${plantingSessions.status} = 'open' THEN ${plantingSessions.closedAt}
+        WHEN ${nextStatus} = 'closed'::session_status THEN now()
+        ELSE NULL
+      END`,
+      closedById: sql`CASE
+        WHEN ${plantingSessions.status} = 'open' THEN ${plantingSessions.closedById}
+        WHEN ${nextStatus} = 'closed'::session_status THEN ${updatedById}
+        ELSE NULL
+      END`,
+      closeNote: sql`CASE WHEN ${plantingSessions.status} = 'open' THEN ${plantingSessions.closeNote} ELSE NULL END`,
+    })
+    .where(and(
+      eq(plantingSessions.id, sessionId),
+      ...(requireOpen ? [eq(plantingSessions.status, "open" as const)] : [])
+    ))
+    .returning({
+      totalSeedlingsPlanted: plantingSessions.totalSeedlingsPlanted,
+      totalSeedlingsSent: plantingSessions.totalSeedlingsSent,
+      status: plantingSessions.status,
+    });
+  return updated[0];
 }
 
 export async function closePlantingSession(
@@ -181,9 +265,15 @@ export async function closePlantingSession(
   closeNote?: string
 ) {
   const db = getDb();
-  await db.update(plantingSessions)
+  const updated = await db.update(plantingSessions)
     .set({ status, closedById, closedAt: new Date(), closeNote: closeNote ?? null })
-    .where(eq(plantingSessions.id, sessionId));
+    .where(and(
+      eq(plantingSessions.id, sessionId),
+      eq(plantingSessions.status, "open"),
+      eq(plantingSessions.totalSeedlingsSent, plantingSessions.totalSeedlingsPlanted)
+    ))
+    .returning({ id: plantingSessions.id });
+  return updated[0];
 }
 
 export async function getChrysanthemumPlantingsBySession(sessionId: number) {
@@ -191,6 +281,92 @@ export async function getChrysanthemumPlantingsBySession(sessionId: number) {
   return db.select().from(chrysanthemumPlantings)
     .where(eq(chrysanthemumPlantings.sessionId, sessionId))
     .orderBy(desc(chrysanthemumPlantings.createdAt));
+}
+
+export async function getChrysanthemumPlantingBySessionEmployee(sessionId: number, employeeId: number) {
+  const db = getDb();
+  const result = await db.select({ id: chrysanthemumPlantings.id })
+    .from(chrysanthemumPlantings)
+    .where(and(
+      eq(chrysanthemumPlantings.sessionId, sessionId),
+      eq(chrysanthemumPlantings.employeeId, employeeId)
+    ))
+    .limit(1);
+  return result[0];
+}
+
+export async function getChrysanthemumPlantingById(id: number) {
+  const db = getDb();
+  const result = await db.select().from(chrysanthemumPlantings)
+    .where(eq(chrysanthemumPlantings.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateChrysanthemumPlantingRecord(
+  id: number,
+  data: {
+    employeeId: number;
+    plantingDate: Date;
+    greenhouses: { greenhouse: number; seedlingsSent?: number; seedlings: number }[];
+    totalSeedlings: number;
+    totalSeedlingsSent: number;
+    totalBoxes: number;
+    discountBoxes: number;
+    discountReason?: string | null;
+    absenceReason?: string | null;
+  }
+) {
+  const db = getDb();
+  await db.update(chrysanthemumPlantings).set({
+    ...data,
+    discountReason: data.discountReason ?? null,
+    absenceReason: data.absenceReason ?? null,
+    confirmStatus: "pending",
+    confirmRejectionReason: null,
+    confirmedAt: null,
+  }).where(eq(chrysanthemumPlantings.id, id));
+}
+
+export async function deleteChrysanthemumPlantingRecord(id: number) {
+  const db = getDb();
+  const deleted = await db.delete(chrysanthemumPlantings)
+    .where(eq(chrysanthemumPlantings.id, id))
+    .returning({ sessionId: chrysanthemumPlantings.sessionId, totalSeedlings: chrysanthemumPlantings.totalSeedlings });
+  return deleted[0];
+}
+
+export async function getSunflowerPlantingById(id: number) {
+  const db = getDb();
+  const result = await db.select().from(sunflowerPlantings)
+    .where(eq(sunflowerPlantings.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateSunflowerPlantingRecord(
+  id: number,
+  data: {
+    employeeId: number;
+    plantingDate: Date;
+    trays: number;
+    discountTrays: number;
+    discountReason?: string | null;
+    absenceReason?: string | null;
+  }
+) {
+  const db = getDb();
+  await db.update(sunflowerPlantings).set({
+    ...data,
+    discountReason: data.discountReason ?? null,
+    absenceReason: data.absenceReason ?? null,
+    confirmStatus: "pending",
+    confirmRejectionReason: null,
+    confirmedAt: null,
+  }).where(eq(sunflowerPlantings.id, id));
+}
+
+export async function deleteSunflowerPlantingRecord(id: number) {
+  const db = getDb();
+  await db.delete(sunflowerPlantings).where(eq(sunflowerPlantings.id, id));
 }
 
 // ─── Confirmation helpers ─────────────────────────────────────────────────────
@@ -231,7 +407,14 @@ export async function rejectSunflowerPlanting(id: number, employeeId: number, re
 
 export async function getAllEmployeesAdmin() {
   const db = getDb();
-  return db.select().from(employees).orderBy(employees.name);
+  return db.select({
+    id: employees.id,
+    name: employees.name,
+    username: employees.username,
+    role: employees.role,
+    active: employees.active,
+    createdAt: employees.createdAt,
+  }).from(employees).orderBy(employees.name);
 }
 
 export async function updateEmployee(

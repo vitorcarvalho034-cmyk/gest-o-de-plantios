@@ -8,14 +8,12 @@ import { BRAND_LOGO_URL } from "@/const";
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loginMode, setLoginMode] = useState<"launcher" | "password">("launcher");
   const [showPassword, setShowPassword] = useState(false);
   const { refetch } = useEmployeeAuth();
 
   const loginMutation = trpc.employee.login.useMutation({
-    onSuccess: (data) => {
-      // Setar cookie JWT via JavaScript (compatível com Netlify Functions)
-      const maxAge = 60 * 60 * 24 * 7; // 7 dias
-      document.cookie = `emp_session=${data.token}; path=/; max-age=${maxAge}; SameSite=Lax`;
+    onSuccess: () => {
       toast.success("Bem-vindo!");
       refetch();
     },
@@ -26,11 +24,19 @@ export default function Login() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) {
-      toast.error("Preencha usuário e senha");
+    if (!username.trim()) {
+      toast.error("Preencha o usuário");
       return;
     }
-    loginMutation.mutate({ username: username.trim(), password });
+    if (loginMode === "password" && !password.trim()) {
+      toast.error("Preencha a senha");
+      return;
+    }
+    loginMutation.mutate({
+      username: username.trim(),
+      mode: loginMode,
+      ...(loginMode === "password" ? { password } : {}),
+    });
   };
 
   return (
@@ -90,13 +96,31 @@ export default function Login() {
           }}
         >
           <h2 className="text-lg font-serif font-bold text-foreground mb-1">
-            Entrar na conta
+            {loginMode === "launcher" ? "Acesso do lançador" : "Entrar na conta"}
           </h2>
           <p className="text-muted-foreground text-sm mb-6">
-            Use suas credenciais de acesso
+            {loginMode === "launcher" ? "Digite seu usuário para entrar." : "Use seu usuário e senha."}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-1">
+              <button
+                type="button"
+                aria-pressed={loginMode === "launcher"}
+                onClick={() => setLoginMode("launcher")}
+                className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${loginMode === "launcher" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Lançador <span className="block font-normal opacity-80">Só usuário</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={loginMode === "password"}
+                onClick={() => setLoginMode("password")}
+                className={`rounded-lg px-2 py-2 text-xs font-semibold transition-colors ${loginMode === "password" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Admin/funcionário <span className="block font-normal opacity-80">Com senha</span>
+              </button>
+            </div>
             {/* Username */}
             <div className="space-y-1.5">
               <label
@@ -120,8 +144,8 @@ export default function Login() {
               />
             </div>
 
-            {/* Password */}
-            <div className="space-y-1.5">
+            {/* Senha obrigatória para administrador e funcionário */}
+            {loginMode === "password" && <div className="space-y-1.5">
               <label
                 htmlFor="password"
                 className="text-xs font-bold text-muted-foreground uppercase tracking-wider"
@@ -148,7 +172,7 @@ export default function Login() {
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-            </div>
+            </div>}
 
             {/* Submit */}
             <button

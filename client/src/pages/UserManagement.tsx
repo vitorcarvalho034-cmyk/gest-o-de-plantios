@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useEmployeeAuth } from "@/contexts/EmployeeAuthContext";
 import { toast } from "sonner";
 import {
   Users, Plus, Pencil, KeyRound, ToggleLeft, ToggleRight, X, Check, Shield, Leaf, Tractor
@@ -36,7 +37,8 @@ type Employee = {
 
 export default function UserManagement() {
   const utils = trpc.useUtils();
-  const { data: employees, isLoading } = trpc.users.list.useQuery();
+  const { employee, loading: authLoading } = useEmployeeAuth();
+  const { data: employees, isLoading } = trpc.users.list.useQuery(undefined, { enabled: employee?.role === "admin" });
 
   // Modais
   const [showCreate, setShowCreate] = useState(false);
@@ -96,14 +98,19 @@ export default function UserManagement() {
     if (!createForm.name || createForm.name.length < 2) errs.name = "Nome obrigatório (mín. 2 caracteres)";
     if (!createForm.username || createForm.username.length < 3) errs.username = "Usuário mínimo 3 caracteres";
     if (!/^[a-z0-9_]+$/.test(createForm.username)) errs.username = "Apenas letras minúsculas, números e _";
-    if (!createForm.password || createForm.password.length < 4) errs.password = "Senha mínima 4 caracteres";
+    if (createForm.role !== "launcher" && (!createForm.password || createForm.password.length < 4)) {
+      errs.password = "Senha mínima 4 caracteres";
+    }
     setCreateErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
   function handleCreate() {
     if (!validateCreate()) return;
-    createMutation.mutate(createForm);
+    const payload = createForm.role === "launcher"
+      ? { name: createForm.name, username: createForm.username, role: createForm.role }
+      : createForm;
+    createMutation.mutate(payload);
   }
 
   function openEdit(emp: Employee) {
@@ -121,6 +128,13 @@ export default function UserManagement() {
     if (newPassword.length < 4) { toast.error("Senha mínima 4 caracteres"); return; }
     if (newPassword !== confirmPassword) { toast.error("Senhas não conferem"); return; }
     resetPasswordMutation.mutate({ id: resetingUser.id, newPassword });
+  }
+
+  if (authLoading) {
+    return <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>Verificando acesso...</div>;
+  }
+  if (employee?.role !== "admin") {
+    return <div role="alert" style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>Acesso restrito ao administrador.</div>;
   }
 
   const active = employees?.filter(e => e.active) ?? [];
@@ -217,18 +231,25 @@ export default function UserManagement() {
               style={inputStyle}
             />
           </FormField>
-          <FormField label="Senha" error={createErrors.password}>
-            <input
-              type="password"
-              value={createForm.password}
-              onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-              placeholder="Mínimo 4 caracteres"
-              style={inputStyle}
-            />
-          </FormField>
+          {createForm.role !== "launcher" && (
+            <FormField label="Senha" error={createErrors.password}>
+              <input
+                type="password"
+                value={createForm.password}
+                onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="Mínimo 4 caracteres"
+                style={inputStyle}
+              />
+            </FormField>
+          )}
           <FormField label="Perfil">
             <RoleSelect value={createForm.role} onChange={r => setCreateForm(f => ({ ...f, role: r }))} />
           </FormField>
+          {createForm.role === "launcher" && (
+            <p style={{ margin: 0, fontSize: "12px", color: "#0369a1" }}>
+              O lançador entra usando somente o nome de usuário, sem senha.
+            </p>
+          )}
           <button
             onClick={handleCreate}
             disabled={createMutation.isPending}
@@ -356,7 +377,7 @@ function EmployeeCard({
         {/* Actions */}
         <div style={{ display: "flex", gap: "6px" }}>
           <ActionBtn onClick={() => onEdit(emp)} color="#16a34a" title="Editar"><Pencil size={14} /></ActionBtn>
-          <ActionBtn onClick={() => onReset(emp)} color="#0369a1" title="Redefinir senha"><KeyRound size={14} /></ActionBtn>
+          {role !== "launcher" && <ActionBtn onClick={() => onReset(emp)} color="#0369a1" title="Redefinir senha"><KeyRound size={14} /></ActionBtn>}
           <ActionBtn onClick={() => onToggle(emp)} color={toggleColor} title={toggleLabel}>{toggleIcon}</ActionBtn>
         </div>
       </div>

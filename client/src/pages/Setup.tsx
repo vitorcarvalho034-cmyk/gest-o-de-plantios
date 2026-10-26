@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
 import { BRAND_LOGO_URL } from "@/const";
 
+const DEFAULT_LAUNCHER_USERNAME = `lancador_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`;
+
 const DEFAULT_EMPLOYEES = [
   { name: "Funcionário 01", username: "func01", password: "senha01", role: "employee" as const },
   { name: "Funcionário 02", username: "func02", password: "senha02", role: "employee" as const },
@@ -24,7 +26,7 @@ const DEFAULT_EMPLOYEES = [
   { name: "Funcionário 13", username: "func13", password: "senha13", role: "employee" as const },
   { name: "Funcionário 14", username: "func14", password: "senha14", role: "employee" as const },
   { name: "Funcionário 15", username: "func15", password: "senha15", role: "employee" as const },
-  { name: "Lançador", username: "lancador", password: "lancador123", role: "launcher" as const },
+  { name: "Lançador", username: DEFAULT_LAUNCHER_USERNAME, role: "launcher" as const },
   { name: "Administrador", username: "admin", password: "admin123", role: "admin" as const },
 ];
 
@@ -56,7 +58,7 @@ export default function Setup() {
             </div>
             <h2 className="text-xl font-serif font-bold mb-2">Setup Concluído!</h2>
             <p className="text-muted-foreground text-sm mb-6">
-              Todos os usuários foram criados. Acesse o sistema com as credenciais padrão.
+              Todos os usuários foram criados. O lançador entra sem senha usando o usuário {DEFAULT_LAUNCHER_USERNAME}.
             </p>
             <Button onClick={() => window.location.href = "/"} className="w-full">
               Ir para o Login
@@ -103,9 +105,10 @@ export default function Setup() {
               <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">Usuários que serão criados:</p>
                 <p>• 15 funcionários: func01–func15 / senha01–senha15</p>
-                <p>• Lançador: lancador / lancador123</p>
-                <p>• Administrador: admin / admin123</p>
-                <p className="text-amber-600 font-medium mt-2">⚠ Altere as senhas após o primeiro acesso.</p>
+              <p>• Lançador: {DEFAULT_LAUNCHER_USERNAME} (entra somente com usuário)</p>
+              <p>• Administrador: admin / admin123</p>
+              <p className="text-amber-600 font-medium mt-2">⚠ O acesso do lançador não pede senha; use um nome de usuário exclusivo.</p>
+              <p className="text-amber-600 font-medium">Altere as senhas dos demais perfis após o primeiro acesso.</p>
               </div>
 
               <Button type="submit" className="w-full h-11" disabled={seedMutation.isPending}>

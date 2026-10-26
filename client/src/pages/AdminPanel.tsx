@@ -7,14 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Flower2, Sun, Users, Package, Layers, TrendingUp, AlertCircle, Calendar, ChevronDown, ChevronUp, TrendingDown, CheckCircle2, XCircle, Clock, GitCompare, ListChecks, Lock, AlertOctagon, DollarSign, UserCheck } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDateOnly } from "@/lib/date-only";
 import { cn } from "@/lib/utils";
+import { PlantingRecordActions, type ChrysanthemumManageRecord } from "@/components/PlantingRecordActions";
+import { SessionManagementActions, type SessionToManage } from "@/components/SessionManagementActions";
 
 type GreenhouseEntry = { greenhouse: 1 | 2 | 3 | 4; seedlingsSent?: number; seedlings: number };
 
 function formatDate(d: Date | string) {
-  return format(new Date(d), "dd/MM/yyyy", { locale: ptBR });
+  return formatDateOnly(d);
 }
 
 type EmpSummary = {
@@ -437,6 +438,7 @@ export default function AdminPanel() {
                     <p className="text-sm font-bold text-green-700">{net}</p>
                   </div>
                 </div>
+                <PlantingRecordActions kind="chrysanthemum" record={p as unknown as ChrysanthemumManageRecord} employees={employeeList?.filter((item) => item.role === "employee") ?? []} />
                 {(p.discountReason || p.absenceReason || (p as any).confirmStatus) && (
                   <div className="border-t border-primary/10 px-4 py-2.5 bg-muted/20 space-y-1">
                     {(p as any).confirmStatus && (
@@ -545,7 +547,7 @@ export default function AdminPanel() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-semibold">{item.date ? new Date(item.date + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}</p>
+                          <p className="text-xs font-semibold">{item.date ? formatDateOnly(item.date) : '—'}</p>
                           {isOk && <span className="text-xs text-green-700 font-bold">✓ OK</span>}
                           {isDivergencia && <span className="text-xs text-orange-600 font-bold">⚠ {item.diff > 0 ? `+${item.diff}` : item.diff}</span>}
                         </div>
@@ -629,6 +631,7 @@ export default function AdminPanel() {
                     <p className="text-sm font-bold text-amber-700">{net}</p>
                   </div>
                 </div>
+                <PlantingRecordActions kind="sunflower" record={p} employees={employeeList?.filter((item) => item.role === "employee") ?? []} />
                 {(p.discountReason || p.absenceReason || (p as any).confirmStatus) && (
                   <div className="border-t border-amber-100 px-4 py-2.5 bg-amber-50/50 space-y-1">
                     {(p as any).confirmStatus && (
@@ -712,7 +715,7 @@ function SessionCard({
             </div>
             <div>
               <p className="font-bold text-sm">
-                {new Date(s.plantingDate).toLocaleDateString("pt-BR")}
+                {formatDateOnly(s.plantingDate)}
               </p>
               <p className="text-xs text-muted-foreground">Sess\u00e3o #{s.id} \u2022 {s.openedByName}</p>
             </div>
@@ -764,6 +767,10 @@ function SessionCard({
             <strong>Obs:</strong> {s.closeNote}
           </div>
         )}
+
+        <div className="flex justify-end mb-2">
+          <SessionManagementActions session={s as SessionToManage} />
+        </div>
 
         <button
           type="button"
