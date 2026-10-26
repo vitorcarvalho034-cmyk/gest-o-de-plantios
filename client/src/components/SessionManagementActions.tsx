@@ -292,7 +292,7 @@ export function SessionManagementActions({ session }: { session: SessionToManage
               Excluir sessão definitivamente?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação é irreversível: a sessão será apagada junto com todos os {session.plantings.length} lançamentos vinculados a ela.
+              Esta ação é irreversível: a sessão será apagada junto com todos os lançamentos de crisântemo vinculados a ela.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

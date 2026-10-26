@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Flower2, Sun, ChevronRight, CheckCircle2, AlertTriangle, Users, Package, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateOnly, todayDateInputValue } from "@/lib/date-only";
+import { PlantingRecordActions, type ChrysanthemumManageRecord } from "@/components/PlantingRecordActions";
+import { SessionManagementActions, type SessionToManage } from "@/components/SessionManagementActions";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 type PlantType = "chrysanthemum" | "sunflower";
@@ -24,13 +26,8 @@ type ActiveSession = {
   totalSeedlingsPlanted: number;
 };
 
-type PlantingRecord = {
-  employeeId?: number;
+type PlantingRecord = ChrysanthemumManageRecord & {
   employeeName: string;
-  totalSeedlings: number;
-  totalBoxes: number;
-  absenceReason?: string | null;
-  discountBoxes: number;
 };
 
 const GH_NUMS = [1, 2, 3, 4] as const;
@@ -132,12 +129,13 @@ export default function Launch() {
   useEffect(() => {
     if (!activeSessionDetails || activeSessionDetails.session.id !== activeSession?.id) return;
     setSessionPlantings(activeSessionDetails.plantings.map((planting) => ({
-      employeeId: planting.employeeId,
-      employeeName: planting.employeeName,
-      totalSeedlings: planting.totalSeedlings,
-      totalBoxes: planting.totalBoxes,
-      absenceReason: planting.absenceReason,
-      discountBoxes: planting.discountBoxes,
+      ...planting,
+      greenhouses: planting.greenhouses as ChrysanthemumManageRecord["greenhouses"],
+      discountReason: planting.discountReason ?? null,
+      absenceReason: planting.absenceReason ?? null,
+      launchedById: planting.launchedById ?? null,
+      confirmStatus: planting.confirmStatus ?? null,
+      confirmRejectionReason: planting.confirmRejectionReason ?? null,
     })));
     setActiveSession((current) => current && current.id === activeSessionDetails.session.id
       ? {
@@ -180,18 +178,6 @@ export default function Launch() {
   const addPlanting = trpc.session.addPlanting.useMutation({
     onSuccess: (data) => {
       if (!activeSession) return;
-      const emp = employees.find((e) => String(e.id) === selEmployee);
-      setSessionPlantings((prev) => [
-        ...prev,
-        {
-          employeeId: emp?.id,
-          employeeName: emp?.name ?? "Funcionário",
-          totalSeedlings: data.totalSeedlings,
-          totalBoxes: data.totalBoxes,
-          absenceReason: isAbsent ? absenceReason : null,
-          discountBoxes: Number(discountBoxes),
-        },
-      ]);
       setActiveSession((s) => s ? { ...s, totalSeedlingsPlanted: data.sessionTotal } : s);
       utils.session.manageList.invalidate();
       utils.session.getWithPlantings.invalidate({ sessionId: activeSession.id });
@@ -549,49 +535,60 @@ export default function Launch() {
                   {openSessions.map((s) => {
                     const ghs = (s.greenhouses as Array<{ greenhouse: number; seedlingsSent: number }>);
                     const diff = s.totalSeedlingsSent - s.totalSeedlingsPlanted;
+                    const sessionForManagement: SessionToManage = {
+                      id: s.id,
+                      plantingDate: s.plantingDate,
+                      status: s.status,
+                      totalSeedlingsSent: s.totalSeedlingsSent,
+                      totalSeedlingsPlanted: s.totalSeedlingsPlanted,
+                      greenhouses: ghs,
+                      plantings: [],
+                    };
                     return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => handleResumeSession(s)}
-                        className="w-full text-left bg-primary/5 border-2 border-primary/30 rounded-2xl p-4 hover:bg-primary/10 transition-colors"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                              <Flower2 className="w-4 h-4 text-primary" />
+                      <div key={s.id} className="overflow-hidden rounded-2xl border-2 border-primary/30 bg-primary/5">
+                        <button
+                          type="button"
+                          onClick={() => handleResumeSession(s)}
+                          className="w-full p-4 text-left transition-colors hover:bg-primary/10"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                                <Flower2 className="w-4 h-4 text-primary" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-bold text-primary">
+                                  {formatDateOnly(s.plantingDate)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Sessão #{s.id}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-bold text-primary">
-                                {formatDateOnly(s.plantingDate)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">Sessão #{s.id}</p>
+                            <Badge className={cn(
+                              "text-xs font-bold",
+                              diff === 0 && s.totalSeedlingsPlanted > 0
+                                ? "bg-green-100 text-green-700 border-green-200"
+                                : "bg-orange-100 text-orange-700 border-orange-200"
+                            )}>
+                              {diff === 0 && s.totalSeedlingsPlanted > 0 ? "✅ Pronta p/ fechar" : `Faltam ${fmtBoxes(Math.max(0, diff) / SEEDLINGS_PER_BOX)} cx`}
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="bg-white rounded-lg py-1.5 border border-border/60">
+                              <p className="text-xs text-muted-foreground">Enviado</p>
+                              <p className="text-sm font-bold text-blue-700">{fmtBoxes(s.totalSeedlingsSent / SEEDLINGS_PER_BOX)} cx</p>
+                            </div>
+                            <div className="bg-white rounded-lg py-1.5 border border-border/60">
+                              <p className="text-xs text-muted-foreground">Plantado</p>
+                              <p className="text-sm font-bold text-green-700">{fmtBoxes(s.totalSeedlingsPlanted / SEEDLINGS_PER_BOX)} cx</p>
+                            </div>
+                            <div className="bg-white rounded-lg py-1.5 border border-border/60">
+                              <p className="text-xs text-muted-foreground">Estufas</p>
+                              <p className="text-sm font-bold">{ghs.map((g) => `E${g.greenhouse}`).join(", ")}</p>
                             </div>
                           </div>
-                          <Badge className={cn(
-                            "text-xs font-bold",
-                            diff === 0 && s.totalSeedlingsPlanted > 0
-                              ? "bg-green-100 text-green-700 border-green-200"
-                              : "bg-orange-100 text-orange-700 border-orange-200"
-                          )}>
-                            {diff === 0 && s.totalSeedlingsPlanted > 0 ? "✅ Pronta p/ fechar" : `Faltam ${fmtBoxes(Math.max(0, diff) / SEEDLINGS_PER_BOX)} cx`}
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-white rounded-lg py-1.5 border border-border/60">
-                            <p className="text-xs text-muted-foreground">Enviado</p>
-                            <p className="text-sm font-bold text-blue-700">{fmtBoxes(s.totalSeedlingsSent / SEEDLINGS_PER_BOX)} cx</p>
-                          </div>
-                          <div className="bg-white rounded-lg py-1.5 border border-border/60">
-                            <p className="text-xs text-muted-foreground">Plantado</p>
-                            <p className="text-sm font-bold text-green-700">{fmtBoxes(s.totalSeedlingsPlanted / SEEDLINGS_PER_BOX)} cx</p>
-                          </div>
-                          <div className="bg-white rounded-lg py-1.5 border border-border/60">
-                            <p className="text-xs text-muted-foreground">Estufas</p>
-                            <p className="text-sm font-bold">{ghs.map((g) => `E${g.greenhouse}`).join(", ")}</p>
-                          </div>
-                        </div>
-                      </button>
+                        </button>
+                        <SessionManagementActions session={sessionForManagement} />
+                      </div>
                     );
                   })}
                 </div>
@@ -655,22 +652,25 @@ export default function Launch() {
                     <p className="text-sm font-semibold text-foreground">{sessionPlantings.length} funcionário(s) lançado(s)</p>
                   </div>
                   {sessionPlantings.map((p, i) => (
-                    <div key={i} className="bg-white rounded-xl border-l-4 border-green-500 border border-border p-3 flex justify-between items-center">
-                      <div>
-                        <p className="font-semibold text-sm text-foreground">{p.employeeName}</p>
-                        {p.absenceReason ? (
-                          <p className="text-xs text-destructive">Ausente: {p.absenceReason}</p>
-                        ) : (
-                          <p className="text-xs text-muted-foreground">
-                            {fmtNum(p.totalBoxes)} caixas
-                            {p.discountBoxes > 0 && ` · -${p.discountBoxes} cx desc.`}
-                          </p>
-                        )}
+                    <div key={p.id} className="space-y-1.5">
+                      <div className="bg-white rounded-xl border-l-4 border-green-500 border border-border p-3 flex justify-between items-center">
+                        <div>
+                          <p className="font-semibold text-sm text-foreground">{p.employeeName}</p>
+                          {p.absenceReason ? (
+                            <p className="text-xs text-destructive">Ausente: {p.absenceReason}</p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              {fmtNum(p.totalBoxes)} caixas
+                              {p.discountBoxes > 0 && ` · -${p.discountBoxes} cx desc.`}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-bold text-primary">{p.totalBoxes}</p>
+                          <p className="text-xs text-muted-foreground">caixas</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xl font-bold text-primary">{p.totalBoxes}</p>
-                        <p className="text-xs text-muted-foreground">caixas</p>
-                      </div>
+                      <PlantingRecordActions kind="chrysanthemum" record={p} employees={workerList} />
                     </div>
                   ))}
                 </div>
