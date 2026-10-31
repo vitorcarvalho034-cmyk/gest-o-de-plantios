@@ -9,6 +9,7 @@ import {
   InsertPlantingSession,
   InsertSunflowerPlanting,
   InsertUser,
+  paymentRates,
   plantingSessions,
   sunflowerPlantings,
   users,
@@ -173,7 +174,6 @@ export async function updatePlantingSessionDetails(
     END`,
     closedAt: sql`CASE WHEN ${plantingSessions.status} <> 'open' AND ${balanced} THEN now() ELSE NULL END`,
     closedById: sql`CASE WHEN ${plantingSessions.status} <> 'open' AND ${balanced} THEN ${data.updatedById} ELSE NULL END`,
-    closeNote: null,
   }).where(eq(plantingSessions.id, id));
   await db.update(chrysanthemumPlantings)
     .set({ plantingDate: data.plantingDate })
@@ -322,7 +322,6 @@ export async function updateChrysanthemumPlantingRecord(
     discountReason: data.discountReason ?? null,
     absenceReason: data.absenceReason ?? null,
     confirmStatus: "pending",
-    confirmRejectionReason: null,
     confirmedAt: null,
   }).where(eq(chrysanthemumPlantings.id, id));
 }
@@ -359,7 +358,6 @@ export async function updateSunflowerPlantingRecord(
     discountReason: data.discountReason ?? null,
     absenceReason: data.absenceReason ?? null,
     confirmStatus: "pending",
-    confirmRejectionReason: null,
     confirmedAt: null,
   }).where(eq(sunflowerPlantings.id, id));
 }
@@ -379,11 +377,15 @@ export async function confirmChrysanthemumPlanting(id: number, employeeId: numbe
     .where(and(eq(chrysanthemumPlantings.id, id), eq(chrysanthemumPlantings.employeeId, employeeId)));
 }
 
-export async function rejectChrysanthemumPlanting(id: number, employeeId: number, reason: string) {
+export async function rejectChrysanthemumPlanting(id: number, employeeId: number, reason?: string) {
   const db = getDb();
   await db
     .update(chrysanthemumPlantings)
-    .set({ confirmStatus: "rejected", confirmRejectionReason: reason, confirmedAt: new Date() })
+    .set({
+      confirmStatus: "rejected",
+      ...(reason?.trim() ? { confirmRejectionReason: reason.trim() } : {}),
+      confirmedAt: new Date(),
+    })
     .where(and(eq(chrysanthemumPlantings.id, id), eq(chrysanthemumPlantings.employeeId, employeeId)));
 }
 
@@ -395,11 +397,15 @@ export async function confirmSunflowerPlanting(id: number, employeeId: number) {
     .where(and(eq(sunflowerPlantings.id, id), eq(sunflowerPlantings.employeeId, employeeId)));
 }
 
-export async function rejectSunflowerPlanting(id: number, employeeId: number, reason: string) {
+export async function rejectSunflowerPlanting(id: number, employeeId: number, reason?: string) {
   const db = getDb();
   await db
     .update(sunflowerPlantings)
-    .set({ confirmStatus: "rejected", confirmRejectionReason: reason, confirmedAt: new Date() })
+    .set({
+      confirmStatus: "rejected",
+      ...(reason?.trim() ? { confirmRejectionReason: reason.trim() } : {}),
+      confirmedAt: new Date(),
+    })
     .where(and(eq(sunflowerPlantings.id, id), eq(sunflowerPlantings.employeeId, employeeId)));
 }
 
@@ -468,7 +474,6 @@ export async function editChrysanthemumPlanting(
       discountReason: data.discountReason ?? null,
       absenceReason: data.absenceReason ?? null,
       confirmStatus: "pending",
-      confirmRejectionReason: null,
       confirmedAt: null,
     })
     .where(eq(chrysanthemumPlantings.id, id));
@@ -490,8 +495,54 @@ export async function editSunflowerPlanting(
       discountReason: data.discountReason ?? null,
       absenceReason: data.absenceReason ?? null,
       confirmStatus: "pending",
-      confirmRejectionReason: null,
       confirmedAt: null,
     })
     .where(eq(sunflowerPlantings.id, id));
+}
+
+async function ensurePaymentRatesTable(db: ReturnType<typeof getDb>) {
+  await db.execute(sql`CREATE TABLE IF NOT EXISTS "payment_rates" (
+    "id" integer PRIMARY KEY DEFAULT 1 CHECK ("id" = 1),
+    "chrysanthemumCents" integer NOT NULL DEFAULT 700 CHECK ("chrysanthemumCents" >= 0),
+    "sunflowerCents" integer NOT NULL DEFAULT 400 CHECK ("sunflowerCents" >= 0),
+    "updatedById" integer,
+    "updatedAt" timestamp NOT NULL DEFAULT now()
+  )`);
+  await db.insert(paymentRates).values({
+    id: 1,
+    chrysanthemumCents: 700,
+    sunflowerCents: 400,
+  }).onConflictDoNothing({ target: paymentRates.id });
+}
+
+export async function getPaymentRates() {
+  const db = getDb();
+  await ensurePaymentRatesTable(db);
+  const result = await db.select().from(paymentRates).where(eq(paymentRates.id, 1)).limit(1);
+  return result[0];
+}
+
+export async function updatePaymentRates(data: {
+  chrysanthemumCents: number;
+  sunflowerCents: number;
+  updatedById: number;
+}) {
+  const db = getDb();
+  await ensurePaymentRatesTable(db);
+  const result = await db.insert(paymentRates).values({
+    id: 1,
+    chrysanthemumCents: data.chrysanthemumCents,
+    sunflowerCents: data.sunflowerCents,
+    updatedById: data.updatedById,
+    updatedAt: new Date(),
+  }).onConflictDoUpdate({
+    target: paymentRates.id,
+    set: {
+      chrysanthemumCents: data.chrysanthemumCents,
+      sunflowerCents: data.sunflowerCents,
+      updatedById: data.updatedById,
+      updatedAt: new Date(),
+    },
+  }).returning();
+  return result[0];
 }

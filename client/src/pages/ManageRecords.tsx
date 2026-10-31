@@ -5,6 +5,7 @@ import { useEmployeeAuth } from "@/contexts/EmployeeAuthContext";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { formatDateOnly } from "@/lib/date-only";
+import { absenceLabel } from "@/lib/absence";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -122,7 +123,7 @@ function ChrysanthemumRecordCard({ record, employeeName, employees }: { record: 
           {(record.discountReason || record.absenceReason) && (
             <div className="mt-3 space-y-1 rounded-xl bg-muted/30 px-3 py-2 text-xs">
               {record.discountReason && <p className="text-destructive"><strong>Desconto:</strong> {record.discountReason}</p>}
-              {record.absenceReason && <p className="text-orange-700"><strong>Ausência:</strong> {record.absenceReason}</p>}
+              {record.absenceReason && <p className="text-orange-700">{absenceLabel(record.absenceReason)}</p>}
             </div>
           )}
         </div>
@@ -168,7 +169,7 @@ function SunflowerRecordCard({ record, employeeName, employees }: { record: Sunf
           {(record.discountReason || record.absenceReason) && (
             <div className="mt-3 space-y-1 rounded-xl bg-amber-50/60 px-3 py-2 text-xs">
               {record.discountReason && <p className="text-destructive"><strong>Desconto:</strong> {record.discountReason}</p>}
-              {record.absenceReason && <p className="text-orange-700"><strong>Ausência:</strong> {record.absenceReason}</p>}
+              {record.absenceReason && <p className="text-orange-700">{absenceLabel(record.absenceReason)}</p>}
             </div>
           )}
         </div>

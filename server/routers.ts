@@ -30,6 +30,7 @@ import {
   getEmployeeByUsername,
   getEmployeeByUsernameExcluding,
   getOpenPlantingSessions,
+  getPaymentRates,
   getPlantingSessionById,
   getRejectedChrysanthemumPlantings,
   getRejectedSunflowerPlantings,
@@ -39,6 +40,7 @@ import {
   rejectSunflowerPlanting,
   updateChrysanthemumPlantingRecord,
   updateEmployee,
+  updatePaymentRates,
   updatePlantingSessionDetails,
   updateSunflowerPlantingRecord,
 } from "./db";
@@ -795,11 +797,11 @@ export const appRouter = router({
       }),
 
     reject: publicProcedure
-      .input(z.object({ id: z.number().int().positive(), reason: z.string().min(1, "Informe o motivo") }))
+      .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         const emp = await getEmployeeFromCtx(ctx);
         if (!emp) throw new TRPCError({ code: "UNAUTHORIZED" });
-        await rejectChrysanthemumPlanting(input.id, emp.id, input.reason);
+        await rejectChrysanthemumPlanting(input.id, emp.id);
         return { success: true };
       }),
   }),
@@ -971,11 +973,11 @@ export const appRouter = router({
       }),
 
     reject: publicProcedure
-      .input(z.object({ id: z.number().int().positive(), reason: z.string().min(1, "Informe o motivo") }))
+      .input(z.object({ id: z.number().int().positive() }))
       .mutation(async ({ input, ctx }) => {
         const emp = await getEmployeeFromCtx(ctx);
         if (!emp) throw new TRPCError({ code: "UNAUTHORIZED" });
-        await rejectSunflowerPlanting(input.id, emp.id, input.reason);
+        await rejectSunflowerPlanting(input.id, emp.id);
         return { success: true };
       }),
   }),
@@ -1096,7 +1098,8 @@ export const appRouter = router({
           }
         }
         const totalBoxes = Math.floor(totalSeedlings / 1000);
-        const isAbsent = Boolean(input.absenceReason?.trim());
+        const absenceReason = input.absenceReason ?? (totalSeedlings === 0 ? record.absenceReason ?? undefined : undefined);
+        const isAbsent = Boolean(absenceReason?.trim());
         if (isAbsent && (totalSeedlings > 0 || input.discountBoxes > 0)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Funcionário ausente não pode ter plantio ou desconto" });
         }
@@ -1116,7 +1119,7 @@ export const appRouter = router({
           totalBoxes,
           discountBoxes: input.discountBoxes,
           discountReason: input.discountReason,
-          absenceReason: input.absenceReason,
+          absenceReason,
         });
         if (record.sessionId) {
           await adjustSessionPlantedTotal(record.sessionId, totalSeedlings - record.totalSeedlings, emp.id);
@@ -1135,7 +1138,10 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const emp = await getEmployeeFromCtx(ctx);
         if (!emp || (emp.role !== "launcher" && emp.role !== "admin")) throw new TRPCError({ code: "FORBIDDEN" });
-        const isAbsent = Boolean(input.absenceReason?.trim());
+        const record = await getSunflowerPlantingById(input.id);
+        if (!record) throw new TRPCError({ code: "NOT_FOUND", message: "Lançamento não encontrado" });
+        const absenceReason = input.absenceReason ?? (input.trays === 0 ? record.absenceReason ?? undefined : undefined);
+        const isAbsent = Boolean(absenceReason?.trim());
         if (isAbsent && (input.trays > 0 || input.discountTrays > 0)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Funcionário ausente não pode ter bandejas ou desconto" });
         }
@@ -1152,9 +1158,36 @@ export const appRouter = router({
           trays: input.trays,
           discountTrays: input.discountTrays,
           discountReason: input.discountReason,
-          absenceReason: input.absenceReason,
+          absenceReason,
         });
         return { success: true };
+      }),
+  }),
+
+  // ─── Monthly Payroll Rates ────────────────────────────────────────────────
+  payroll: router({
+    employeeNames: publicProcedure.query(async ({ ctx }) => {
+      const emp = await getEmployeeFromCtx(ctx);
+      if (!emp || emp.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+      const allEmployees = await getAllEmployeesAdmin();
+      return allEmployees.map(({ id, name }) => ({ id, name }));
+    }),
+
+    rates: publicProcedure.query(async ({ ctx }) => {
+      const emp = await getEmployeeFromCtx(ctx);
+      if (!emp || emp.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+      return getPaymentRates();
+    }),
+
+    updateRates: publicProcedure
+      .input(z.object({
+        chrysanthemumCents: z.number().int().min(0).max(100_000_000),
+        sunflowerCents: z.number().int().min(0).max(100_000_000),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const emp = await getEmployeeFromCtx(ctx);
+        if (!emp || emp.role !== "admin") throw new TRPCError({ code: "FORBIDDEN" });
+        return updatePaymentRates({ ...input, updatedById: emp.id });
       }),
   }),
 });

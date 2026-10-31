@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Flower2, Sun, ChevronRight, CheckCircle2, AlertTriangle, Users, Package, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateOnly, todayDateInputValue } from "@/lib/date-only";
+import { ABSENCE_MARKER, absenceLabel } from "@/lib/absence";
 import { PlantingRecordActions, type ChrysanthemumManageRecord } from "@/components/PlantingRecordActions";
 import { SessionManagementActions, type SessionToManage } from "@/components/SessionManagementActions";
 
@@ -86,7 +87,6 @@ export default function Launch() {
   // Etapa 2: adicionar funcionário
   const [selEmployee, setSelEmployee] = useState<string>("");
   const [isAbsent, setIsAbsent] = useState(false);
-  const [absenceReason, setAbsenceReason] = useState("");
   const [selectedGhPlanted, setSelectedGhPlanted] = useState<Set<number>>(new Set([1]));
   const [ghPlantedValues, setGhPlantedValues] = useState<Record<number, string>>({ 1: "", 2: "", 3: "", 4: "" });
   const [discountBoxes, setDiscountBoxes] = useState("0");
@@ -102,7 +102,6 @@ export default function Launch() {
   const [sfDiscount, setSfDiscount] = useState("0");
   const [sfDiscountReason, setSfDiscountReason] = useState("");
   const [sfAbsent, setSfAbsent] = useState(false);
-  const [sfAbsenceReason, setSfAbsenceReason] = useState("");
 
   // ── Queries ──────────────────────────────────────────────────────────────────
   const isAdmin = employee?.role === "admin";
@@ -186,7 +185,6 @@ export default function Launch() {
       // Reset formulário
       setSelEmployee("");
       setIsAbsent(false);
-      setAbsenceReason("");
       setGhPlantedValues({ 1: "", 2: "", 3: "", 4: "" });
       setDiscountBoxes("0");
       setDiscountReason("");
@@ -225,7 +223,7 @@ export default function Launch() {
     onSuccess: () => {
       toast.success("✅ Girassol registrado!");
       setSfEmployee(""); setSfTrays(""); setSfDiscount("0");
-      setSfDiscountReason(""); setSfAbsent(false); setSfAbsenceReason("");
+      setSfDiscountReason(""); setSfAbsent(false);
       utils.sunflower.myHistory.invalidate();
       utils.sunflower.manageAll.invalidate();
       utils.sunflower.adminAll.invalidate();
@@ -274,13 +272,12 @@ export default function Launch() {
     if (!selEmployee) { toast.error("Selecione um funcionário"); return; }
 
     if (isAbsent) {
-      if (!absenceReason.trim()) { toast.error("Informe o motivo da ausência"); return; }
       addPlanting.mutate({
         sessionId: activeSession.id,
         employeeId: Number(selEmployee),
         greenhouses: [{ greenhouse: (activeSession.greenhouses[0]?.greenhouse ?? 1) as 1 | 2 | 3 | 4, seedlings: 0 }],
         discountBoxes: 0,
-        absenceReason,
+        absenceReason: ABSENCE_MARKER,
       });
       return;
     }
@@ -313,8 +310,7 @@ export default function Launch() {
   function handleSunflower() {
     if (!sfEmployee) { toast.error("Selecione um funcionário"); return; }
     if (sfAbsent) {
-      if (!sfAbsenceReason.trim()) { toast.error("Informe o motivo da ausência"); return; }
-      createSunflower.mutate({ employeeId: Number(sfEmployee), plantingDate: sfDate, trays: 0, absenceReason: sfAbsenceReason });
+      createSunflower.mutate({ employeeId: Number(sfEmployee), plantingDate: sfDate, trays: 0, absenceReason: ABSENCE_MARKER });
       return;
     }
     if (!sfTrays || Number(sfTrays) <= 0) { toast.error("Informe a quantidade de bandejas"); return; }
@@ -657,7 +653,7 @@ export default function Launch() {
                         <div>
                           <p className="font-semibold text-sm text-foreground">{p.employeeName}</p>
                           {p.absenceReason ? (
-                            <p className="text-xs text-destructive">Ausente: {p.absenceReason}</p>
+                            <p className="text-xs text-destructive">{absenceLabel(p.absenceReason)}</p>
                           ) : (
                             <p className="text-xs text-muted-foreground">
                               {fmtNum(p.totalBoxes)} caixas
@@ -708,14 +704,8 @@ export default function Launch() {
                 </div>
 
                 {isAbsent ? (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold">Motivo da ausência *</Label>
-                    <Input
-                      placeholder="Ex: Atestado médico, falta justificada..."
-                      value={absenceReason}
-                      onChange={(e) => setAbsenceReason(e.target.value)}
-                      className="h-12 rounded-xl text-base"
-                    />
+                  <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
+                    A ausência será registrada sem exigir justificativa.
                   </div>
                 ) : (
                   <>
@@ -944,9 +934,8 @@ export default function Launch() {
           </div>
 
           {sfAbsent ? (
-            <div className="space-y-2">
-              <Label className="text-sm font-semibold">Motivo da ausência *</Label>
-              <Input placeholder="Ex: Atestado médico..." value={sfAbsenceReason} onChange={(e) => setSfAbsenceReason(e.target.value)} className="h-12 rounded-xl text-base" />
+            <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
+              A ausência será registrada sem exigir justificativa.
             </div>
           ) : (
             <>

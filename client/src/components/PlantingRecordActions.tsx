@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { trpc } from "@/lib/trpc";
 import { toDateInputValue } from "@/lib/date-only";
+import { ABSENCE_MARKER } from "@/lib/absence";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -27,7 +28,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 export type GreenhouseNumber = 1 | 2 | 3 | 4;
 
@@ -178,7 +178,6 @@ function ChrysanthemumEditor({
   const [discountBoxes, setDiscountBoxes] = useState(String(record.discountBoxes));
   const [discountReason, setDiscountReason] = useState(record.discountReason ?? "");
   const [isAbsent, setIsAbsent] = useState(Boolean(record.absenceReason));
-  const [absenceReason, setAbsenceReason] = useState(record.absenceReason ?? "");
 
   const availableGreenhouses = useMemo<GreenhouseNumber[]>(() => {
     if (record.sessionId === null) return [...GREENHOUSES];
@@ -198,7 +197,6 @@ function ChrysanthemumEditor({
     setDiscountBoxes(String(record.discountBoxes));
     setDiscountReason(record.discountReason ?? "");
     setIsAbsent(Boolean(record.absenceReason));
-    setAbsenceReason(record.absenceReason ?? "");
   }, [open, record, availableGreenhouses]);
 
   const updateRecord = trpc.chrysanthemum.updateRecord.useMutation({
@@ -235,10 +233,6 @@ function ChrysanthemumEditor({
     }
     if (!isAbsent && selectedEntries.length === 0) {
       toast.error("Selecione pelo menos uma estufa.");
-      return;
-    }
-    if (isAbsent && !absenceReason.trim()) {
-      toast.error("Informe o motivo da ausência.");
       return;
     }
 
@@ -296,7 +290,7 @@ function ChrysanthemumEditor({
       greenhouses: payloadGreenhouses,
       discountBoxes: isAbsent ? 0 : parsedDiscount,
       discountReason: !isAbsent && discountReason.trim() ? discountReason.trim() : undefined,
-      absenceReason: isAbsent ? absenceReason.trim() : undefined,
+      absenceReason: isAbsent ? (record.absenceReason?.trim() || ABSENCE_MARKER) : undefined,
     });
   }
 
@@ -412,14 +406,7 @@ function ChrysanthemumEditor({
                 Funcionário ausente
               </Label>
               {isAbsent && (
-                <Textarea
-                  value={absenceReason}
-                  onChange={(event) => setAbsenceReason(event.target.value)}
-                  placeholder="Motivo da ausência"
-                  rows={2}
-                  className="mt-2 resize-none rounded-lg bg-white"
-                  aria-label="Motivo da ausência"
-                />
+                <p className="mt-2 text-xs text-orange-700">A ausência será registrada sem exigir justificativa.</p>
               )}
             </div>
           </div>
@@ -485,7 +472,6 @@ function SunflowerEditor({
   const [discountTrays, setDiscountTrays] = useState(String(record.discountTrays));
   const [discountReason, setDiscountReason] = useState(record.discountReason ?? "");
   const [isAbsent, setIsAbsent] = useState(Boolean(record.absenceReason));
-  const [absenceReason, setAbsenceReason] = useState(record.absenceReason ?? "");
 
   useEffect(() => {
     if (!open) return;
@@ -495,7 +481,6 @@ function SunflowerEditor({
     setDiscountTrays(String(record.discountTrays));
     setDiscountReason(record.discountReason ?? "");
     setIsAbsent(Boolean(record.absenceReason));
-    setAbsenceReason(record.absenceReason ?? "");
   }, [open, record]);
 
   const updateRecord = trpc.sunflower.updateRecord.useMutation({
@@ -527,10 +512,6 @@ function SunflowerEditor({
       toast.error("O desconto deve ser um inteiro igual ou maior que zero.");
       return;
     }
-    if (isAbsent && !absenceReason.trim()) {
-      toast.error("Informe o motivo da ausência.");
-      return;
-    }
     if (!isAbsent && parsedDiscount > parsedTrays) {
       toast.error("O desconto não pode superar as bandejas plantadas.");
       return;
@@ -547,7 +528,7 @@ function SunflowerEditor({
       trays: isAbsent ? 0 : parsedTrays,
       discountTrays: isAbsent ? 0 : parsedDiscount,
       discountReason: !isAbsent && discountReason.trim() ? discountReason.trim() : undefined,
-      absenceReason: isAbsent ? absenceReason.trim() : undefined,
+      absenceReason: isAbsent ? (record.absenceReason?.trim() || ABSENCE_MARKER) : undefined,
     });
   }
 
@@ -648,14 +629,7 @@ function SunflowerEditor({
                 Funcionário ausente
               </Label>
               {isAbsent && (
-                <Textarea
-                  value={absenceReason}
-                  onChange={(event) => setAbsenceReason(event.target.value)}
-                  placeholder="Motivo da ausência"
-                  rows={2}
-                  className="mt-2 resize-none rounded-lg bg-white"
-                  aria-label="Motivo da ausência"
-                />
+                <p className="mt-2 text-xs text-orange-700">A ausência será registrada sem exigir justificativa.</p>
               )}
             </div>
           </div>

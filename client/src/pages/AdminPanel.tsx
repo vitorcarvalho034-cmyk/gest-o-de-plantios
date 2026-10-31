@@ -11,6 +11,8 @@ import { formatDateOnly } from "@/lib/date-only";
 import { cn } from "@/lib/utils";
 import { PlantingRecordActions, type ChrysanthemumManageRecord } from "@/components/PlantingRecordActions";
 import { SessionManagementActions, type SessionToManage } from "@/components/SessionManagementActions";
+import MonthlyPayrollTab from "@/components/MonthlyPayrollTab";
+import { absenceLabel } from "@/lib/absence";
 
 type GreenhouseEntry = { greenhouse: 1 | 2 | 3 | 4; seedlingsSent?: number; seedlings: number };
 
@@ -106,8 +108,9 @@ function EmployeeSummaryCard({ s }: { s: EmpSummary }) {
   );
 }
 
-const CHRY_PRICE = 7; // R$ por caixa
-const SUN_PRICE = 4;  // R$ por bandeja
+function formatRate(cents: number) {
+  return (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export default function AdminPanel() {
   const { employee } = useEmployeeAuth();
@@ -116,6 +119,7 @@ export default function AdminPanel() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("all");
 
   const { data: employeeList } = trpc.employee.list.useQuery();
+  const { data: paymentRates } = trpc.payroll.rates.useQuery(undefined, { enabled: employee?.role === "admin" });
   const { data: chrysAll, isLoading: chrysLoading } = trpc.chrysanthemum.adminAll.useQuery(
     { from: from || undefined, to: to || undefined },
     { enabled: employee?.role === "admin" }
@@ -184,8 +188,10 @@ export default function AdminPanel() {
   const filteredSun = selectedEmpIdNum ? (sunAll ?? []).filter(p => p.employeeId === selectedEmpIdNum) : (sunAll ?? []);
   const payChryNet = filteredChry.reduce((s, p) => s + (p.totalBoxes - p.discountBoxes), 0);
   const paySunNet = filteredSun.reduce((s, p) => s + (p.trays - p.discountTrays), 0);
-  const payChryValue = payChryNet * CHRY_PRICE;
-  const paySunValue = paySunNet * SUN_PRICE;
+  const chrysanthemumRateCents = paymentRates?.chrysanthemumCents ?? 700;
+  const sunflowerRateCents = paymentRates?.sunflowerCents ?? 400;
+  const payChryValue = payChryNet * chrysanthemumRateCents / 100;
+  const paySunValue = paySunNet * sunflowerRateCents / 100;
   const payTotal = payChryValue + paySunValue;
   const selectedEmpName = selectedEmpIdNum ? (employeeList?.find(e => e.id === selectedEmpIdNum)?.name ?? `Funcionário #${selectedEmpIdNum}`) : null;
 
@@ -293,7 +299,7 @@ export default function AdminPanel() {
                   <p className="text-xs text-green-700 font-semibold mt-0.5">
                     R$ {payChryValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-muted-foreground">× R$ {CHRY_PRICE},00/cx</p>
+                  <p className="text-xs text-muted-foreground">× R$ {formatRate(chrysanthemumRateCents)}/cx</p>
                 </div>
                 <div className="bg-white rounded-xl p-3 border border-amber-200">
                   <div className="flex items-center gap-1 mb-1">
@@ -304,7 +310,7 @@ export default function AdminPanel() {
                   <p className="text-xs text-green-700 font-semibold mt-0.5">
                     R$ {paySunValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-xs text-muted-foreground">× R$ {SUN_PRICE},00/band.</p>
+                  <p className="text-xs text-muted-foreground">× R$ {formatRate(sunflowerRateCents)}/band.</p>
                 </div>
               </div>
               <div className="bg-green-700 rounded-xl p-3 flex items-center justify-between">
@@ -320,10 +326,14 @@ export default function AdminPanel() {
 
       {/* Tabs */}
       <Tabs defaultValue="summary">
-        <TabsList className="grid grid-cols-5 w-full h-11 bg-muted/60 rounded-xl">
+        <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full h-auto min-h-11 bg-muted/60 rounded-xl">
           <TabsTrigger value="summary" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium px-1">
             <TrendingUp className="w-4 h-4" />
             <span className="text-[9px] sm:text-xs leading-none">Resumo</span>
+          </TabsTrigger>
+          <TabsTrigger value="monthly" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 rounded-lg data-[state=active]:bg-green-700 data-[state=active]:text-white font-medium px-1">
+            <DollarSign className="w-4 h-4" />
+            <span className="text-[9px] sm:text-xs leading-none">Mensal</span>
           </TabsTrigger>
           <TabsTrigger value="chrysanthemum" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground font-medium px-1">
             <Flower2 className="w-4 h-4" />
@@ -342,6 +352,10 @@ export default function AdminPanel() {
             <span className="text-[9px] sm:text-xs leading-none">Sessões</span>
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="monthly" className="mt-4">
+          <MonthlyPayrollTab />
+        </TabsContent>
 
         {/* Summary tab */}
         <TabsContent value="summary" className="mt-4 space-y-3">
@@ -444,12 +458,12 @@ export default function AdminPanel() {
                     {(p as any).confirmStatus && (
                       <div className="flex items-center gap-1.5">
                         {(p as any).confirmStatus === 'confirmed' && <><CheckCircle2 className="w-3.5 h-3.5 text-green-600" /><span className="text-xs text-green-700 font-semibold">Confirmado pelo funcionário</span></>}
-                        {(p as any).confirmStatus === 'rejected' && <><XCircle className="w-3.5 h-3.5 text-red-600" /><span className="text-xs text-red-700 font-semibold">Contestado: {(p as any).confirmRejectionReason}</span></>}
+                        {(p as any).confirmStatus === 'rejected' && <><XCircle className="w-3.5 h-3.5 text-red-600" /><span className="text-xs text-red-700 font-semibold">{(p as any).confirmRejectionReason ? `Contestado: ${(p as any).confirmRejectionReason}` : "Contestado pelo funcionário"}</span></>}
                         {(!(p as any).confirmStatus || (p as any).confirmStatus === 'pending') && <><Clock className="w-3.5 h-3.5 text-yellow-600" /><span className="text-xs text-yellow-700 font-semibold">Aguardando confirmação</span></>}
                       </div>
                     )}
                     {p.discountReason && <p className="text-xs text-destructive"><span className="font-semibold">Desc:</span> {p.discountReason}</p>}
-                    {p.absenceReason && <p className="text-xs text-orange-600"><span className="font-semibold">Aus:</span> {p.absenceReason}</p>}
+                    {p.absenceReason && <p className="text-xs text-orange-600">{absenceLabel(p.absenceReason)}</p>}
                   </div>
                 )}
               </div>
@@ -637,12 +651,12 @@ export default function AdminPanel() {
                     {(p as any).confirmStatus && (
                       <div className="flex items-center gap-1.5">
                         {(p as any).confirmStatus === 'confirmed' && <><CheckCircle2 className="w-3.5 h-3.5 text-green-600" /><span className="text-xs text-green-700 font-semibold">Confirmado pelo funcionário</span></>}
-                        {(p as any).confirmStatus === 'rejected' && <><XCircle className="w-3.5 h-3.5 text-red-600" /><span className="text-xs text-red-700 font-semibold">Contestado: {(p as any).confirmRejectionReason}</span></>}
+                        {(p as any).confirmStatus === 'rejected' && <><XCircle className="w-3.5 h-3.5 text-red-600" /><span className="text-xs text-red-700 font-semibold">{(p as any).confirmRejectionReason ? `Contestado: ${(p as any).confirmRejectionReason}` : "Contestado pelo funcionário"}</span></>}
                         {(!(p as any).confirmStatus || (p as any).confirmStatus === 'pending') && <><Clock className="w-3.5 h-3.5 text-yellow-600" /><span className="text-xs text-yellow-700 font-semibold">Aguardando confirmação</span></>}
                       </div>
                     )}
                     {p.discountReason && <p className="text-xs text-destructive"><span className="font-semibold">Desc:</span> {p.discountReason}</p>}
-                    {p.absenceReason && <p className="text-xs text-orange-600"><span className="font-semibold">Aus:</span> {p.absenceReason}</p>}
+                    {p.absenceReason && <p className="text-xs text-orange-600">{absenceLabel(p.absenceReason)}</p>}
                   </div>
                 )}
               </div>
@@ -793,7 +807,7 @@ function SessionCard({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{p.employeeName}</p>
                 {p.absenceReason ? (
-                  <p className="text-xs text-orange-600">Ausente: {p.absenceReason}</p>
+                  <p className="text-xs text-orange-600">{absenceLabel(p.absenceReason)}</p>
                 ) : (
                   <div className="flex flex-wrap gap-2 mt-0.5">
                     <span className="text-xs text-muted-foreground">{fmtNum(p.totalSeedlings)} mudas</span>

@@ -108,3 +108,16 @@ export const sunflowerPlantings = pgTable("sunflower_plantings", {
 });
 export type SunflowerPlanting = typeof sunflowerPlantings.$inferSelect;
 export type InsertSunflowerPlanting = typeof sunflowerPlantings.$inferInsert;
+
+/**
+ * Tarifas unitárias usadas no cálculo mensal de pagamento.
+ * Os valores são armazenados em centavos para evitar erros de ponto flutuante.
+ */
+export const paymentRates = pgTable("payment_rates", {
+  id: integer("id").primaryKey().default(1),
+  chrysanthemumCents: integer("chrysanthemumCents").notNull().default(700),
+  sunflowerCents: integer("sunflowerCents").notNull().default(400),
+  updatedById: integer("updatedById"),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type PaymentRates = typeof paymentRates.$inferSelect;

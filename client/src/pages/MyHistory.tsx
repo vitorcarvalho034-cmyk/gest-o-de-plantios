@@ -5,13 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Flower2, Sun, Package, Layers, Calendar, AlertCircle, TrendingDown, ChevronDown, ChevronUp, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatDateOnly } from "@/lib/date-only";
+import { absenceLabel } from "@/lib/absence";
 
 type GreenhouseEntry = { greenhouse: 1 | 2 | 3 | 4; seedlingsSent?: number; seedlings: number };
 
@@ -138,8 +138,8 @@ function ChrysCard({
             <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-orange-600">Motivo de ausência</p>
-                <p className="text-xs text-foreground">{p.absenceReason}</p>
+                <p className="text-xs font-semibold text-orange-600">Ausência</p>
+                <p className="text-xs text-foreground">{absenceLabel(p.absenceReason)}</p>
               </div>
             </div>
           )}
@@ -265,8 +265,8 @@ function SunCard({
             <div className="flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
               <div>
-                <p className="text-xs font-semibold text-orange-600">Motivo de ausência</p>
-                <p className="text-xs text-foreground">{p.absenceReason}</p>
+                <p className="text-xs font-semibold text-orange-600">Ausência</p>
+                <p className="text-xs text-foreground">{absenceLabel(p.absenceReason)}</p>
               </div>
             </div>
           )}
@@ -313,7 +313,6 @@ export default function MyHistory() {
 
   // Rejection dialog state
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; type: "chrysanthemum" | "sunflower"; id: number } | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
 
   const { data: chrysHistory, isLoading: chrysLoading } = trpc.chrysanthemum.myHistory.useQuery(
     { from: from || undefined, to: to || undefined },
@@ -336,7 +335,6 @@ export default function MyHistory() {
     onSuccess: () => {
       toast.success("Contestação registrada.");
       setRejectDialog(null);
-      setRejectReason("");
       utils.chrysanthemum.myHistory.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -354,7 +352,6 @@ export default function MyHistory() {
     onSuccess: () => {
       toast.success("Contestação registrada.");
       setRejectDialog(null);
-      setRejectReason("");
       utils.sunflower.myHistory.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -367,14 +364,12 @@ export default function MyHistory() {
 
   const handleOpenReject = (type: "chrysanthemum" | "sunflower", id: number) => {
     setRejectDialog({ open: true, type, id });
-    setRejectReason("");
   };
 
   const handleSubmitReject = () => {
-    if (!rejectReason.trim()) { toast.error("Informe o motivo da contestação"); return; }
     if (!rejectDialog) return;
-    if (rejectDialog.type === "chrysanthemum") chrysReject.mutate({ id: rejectDialog.id, reason: rejectReason });
-    else sunReject.mutate({ id: rejectDialog.id, reason: rejectReason });
+    if (rejectDialog.type === "chrysanthemum") chrysReject.mutate({ id: rejectDialog.id });
+    else sunReject.mutate({ id: rejectDialog.id });
   };
 
   const totalChrysNet = chrysHistory?.reduce((s, p) => s + p.totalBoxes - p.discountBoxes, 0) ?? 0;
@@ -526,7 +521,7 @@ export default function MyHistory() {
       </Tabs>
 
       {/* Rejection Dialog */}
-      <Dialog open={!!rejectDialog?.open} onOpenChange={(open) => { if (!open) { setRejectDialog(null); setRejectReason(""); } }}>
+      <Dialog open={!!rejectDialog?.open} onOpenChange={(open) => { if (!open) setRejectDialog(null); }}>
         <DialogContent className="mx-4 rounded-2xl max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -536,24 +531,13 @@ export default function MyHistory() {
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-sm text-muted-foreground">
-              Informe o motivo pelo qual as informações deste lançamento estão incorretas. O administrador será notificado.
+              Confirme que deseja contestar este lançamento. O administrador será notificado; não é necessário escrever uma justificativa.
             </p>
-            <div className="space-y-1.5">
-              <Label className="text-sm font-semibold">Motivo da contestação *</Label>
-              <Textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Ex: A quantidade de caixas está errada, foram plantadas apenas 5 caixas e não 8..."
-                rows={4}
-                className="resize-none rounded-xl text-sm"
-                autoFocus
-              />
-            </div>
           </div>
           <DialogFooter className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => { setRejectDialog(null); setRejectReason(""); }}
+              onClick={() => setRejectDialog(null)}
               className="flex-1 rounded-xl"
             >
               Cancelar
@@ -563,7 +547,7 @@ export default function MyHistory() {
               disabled={chrysReject.isPending || sunReject.isPending}
               className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl"
             >
-              {chrysReject.isPending || sunReject.isPending ? "Enviando..." : "Enviar Contestação"}
+              {chrysReject.isPending || sunReject.isPending ? "Enviando..." : "Confirmar contestação"}
             </Button>
           </DialogFooter>
         </DialogContent>

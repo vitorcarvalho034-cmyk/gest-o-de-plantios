@@ -12,12 +12,12 @@ export default function RejectedPlantings() {
 
   const [editingChrys, setEditingChrys] = useState<null | {
     id: number; employeeName?: string; greenhouses: GreenhouseEntry[];
-    discountBoxes: number; discountReason: string; absenceReason: string;
+    discountBoxes: number; discountReason: string;
   }>(null);
 
   const [editingSunflower, setEditingSunflower] = useState<null | {
     id: number; employeeName?: string;
-    trays: number; discountTrays: number; discountReason: string; absenceReason: string;
+    trays: number; discountTrays: number; discountReason: string;
   }>(null);
 
   const editChrys = trpc.rejected.editChrysanthemum.useMutation({
@@ -103,7 +103,6 @@ export default function RejectedPlantings() {
                             greenhouses: greenhouses,
                             discountBoxes: p.discountBoxes,
                             discountReason: p.discountReason ?? "",
-                            absenceReason: p.absenceReason ?? "",
                           })}
                           style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#16a34a", color: "white", border: "none", borderRadius: "8px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}
                         >
@@ -150,7 +149,6 @@ export default function RejectedPlantings() {
                           trays: p.trays,
                           discountTrays: p.discountTrays,
                           discountReason: p.discountReason ?? "",
-                          absenceReason: p.absenceReason ?? "",
                         })}
                         style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 14px", background: "#d97706", color: "white", border: "none", borderRadius: "8px", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}
                       >
